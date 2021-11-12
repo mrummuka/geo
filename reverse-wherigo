@@ -1,0 +1,465 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Reverse Wherigo Decoder
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [code-A] [code-B] [code-C]
+
+DESCRIPTION
+    Reverse Wherigo decoder. Code's A, B, and C are off the geocache
+    description, i.e. http://coord.info/GC6GJX1, https://coord.info/GC672VM,
+    https://coord.info/GC71ADB, https://coord.info/GC65FXK, or
+    https://coord.info/GC7B2T7 .
+
+    reverse-wherigo can use command line arguments or it can read from stdin.
+
+OPTIONS
+    -c		Ignore the checkdigit for 7 letter codes.
+    -D lvl	Debug level
+
+EXAMPLE
+    Decode GC6GJX1 ("The Reverse Cache - beta):
+
+	$ reverse-wherigo 809382 480302 325138
+	42.931380 -88.032280    n42.55.883 w88.01.937
+
+    Decode GC672VM ("Generic Cartridge"):
+
+	$ reverse-wherigo 01733414227001748839 61733424947042719489 
+	start:  44.778300 -93.170420    n44.46.698 w93.10.225
+	final:  44.774860 -93.174190    n44.46.492 w93.10.451
+
+    Decode GC71ADB ("Wonder Wherigo"):
+
+	$ reverse-wherigo 590325 488604 587219 090325 484605 525279
+	start:  45.052150 -92.964880    n45.03.129 w92.57.893
+	final:  45.052700 -92.965280    n45.03.162 w92.57.917
+
+    Decode GC65FXK ("Wonder Wherigo V1.5")
+
+	$ reverse-wherigo 6043354 7740432 9909731 6043756 7730403 9289630 \\
+	    5043254 7740465 9319531
+	start:  44.796750 -93.073930    n44.47.805 w93.04.436
+	middle: 44.796650 -93.077200    n44.47.799 w93.04.632
+	final:  44.795550 -93.072360    n44.47.733 w93.04.342
+
+    Decode GC7B2T7 ("Wonder Wherigo Time Trials V1.5")
+
+	$ reverse-wherigo 1953246 4350030 1003794 1853247 4008006 2340694 \\
+	    8853241 4098002 1059794 \\
+	    13689003
+	start:  44.513710 -92.903030    n44.30.823 w92.54.182
+	middle: 44.520610 -92.880300    n44.31.237 w92.52.818
+	final:  44.519780 -92.880000    n44.31.187 w92.52.800
+	distance:    1.2160234mi        1.957km 1957m   6421ft  66.962
+	time(mm:ss): 19:30
+
+    Decode GC7C0CA and GC7C0CC and GC7DKTA from stdin:
+
+	$ reverse-wherigo 
+	Enter code(s):
+	309334141510603650793
+	44.930730 -93.016610    n44.55.844 w93.00.997
+	404385079294629323120
+	44.934150 -92.978360    n44.56.049 w92.58.702
+	304313209504079854437809334340500374145891599324240590414854595
+	start:  44.943430 -93.001800    n44.56.606 w93.00.108
+	middle: 44.945880 -93.003100    n44.56.753 w93.00.186
+	final:  44.944550 -92.994800    n44.56.673 w92.59.688
+
+SEE ALSO
+    https://www.geocaching.com/bookmarks/view.aspx?guid=eedd6021-ec17-4095-a14f-36f2b6a609f3
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+CHECKDIGIT=1
+while getopts "cD:h?" opt
+do
+	case $opt in
+	c)	CHECKDIGIT=0;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+doit() {
+    awk -v a=$1 -v b=$2 -v c=$3 \
+	-v fa=$4 -v fb=$5 -v fc=$6 \
+	-v Fa=$7 -v Fb=$8 -v Fc=$9 \
+	-v Thresh=${10} \
+	-v CHECKDIGIT=$CHECKDIGIT \
+    '
+    function abs(x) { return (x>=0) ? x : -x }
+    function tonumber(x) { return x+0.0 }
+    function floor(x,   n)       { n = int(x); if (n > x) --n; return (n) }
+    function reverse(x,	i, r)
+    {
+	for (i = length(x); i != 0; i--)
+	    r = r substr(x,i,1)
+	return r
+    }
+
+    function GetCheckDigit(code, \
+	raw, rawReverse, len, sum, digit, i, remainder, checkdigit)
+    {
+	raw = code
+	rawReverse = reverse(raw)
+	len = length(code)
+	# print raw, rawReverse
+	sum = 0
+	digit = " "
+	for (i = len; i >= 2; --i)
+	{
+	    digit = substr(rawReverse, i, 1)
+	    # print digit
+	    sum = sum + digit * i
+	}
+	remainder = sum % len
+	# print sum, remainder
+	checkdigit = 0
+	if (remainder != 0)
+	    checkdigit = (floor(sum / len) + 1) * len - sum
+	# print checkdigit
+	return checkdigit
+    }
+
+    function code2LatLong(varA, varB, varC, \
+	    varLatVorz, varLongVorz, varLongKOMP, varLatKOMP)
+    {
+	if (length(varA) == 7)
+	{
+	    var_codeIdx++
+	    codeLength = 7
+	    tryCode = substr(varA, 1, codeLength - 1) \
+			var_codeIdx \
+			substr(varA, codeLength, codeLength)
+	    if (CHECKDIGIT && GetCheckDigit(tryCode ) != substr(tryCode, 8, 1) )
+	    {
+		print "Checkdigit is wrong on", varA
+		exit
+	    }
+	    varA = substr(varA, 1, 6)
+	}
+	if (length(varB) == 7)
+	{
+	    var_codeIdx++
+	    codeLength = 7
+	    tryCode = substr(varB, 1, codeLength - 1) \
+			var_codeIdx \
+			substr(varB, codeLength, codeLength)
+	    if (CHECKDIGIT && GetCheckDigit(tryCode) != substr(tryCode, 8, 1) )
+	    {
+		print "Checkdigit is wrong on", varB
+		exit
+	    }
+	    varB = substr(varB, 1, 6)
+	}
+	if (length(varC) == 7)
+	{
+	    var_codeIdx++
+	    codeLength = 7
+	    tryCode = substr(varC, 1, codeLength - 1) \
+			var_codeIdx \
+			substr(varC, codeLength, codeLength)
+	    if (CHECKDIGIT && GetCheckDigit(tryCode) != substr(tryCode, 8, 1) )
+	    {
+		print "Checkdigit is wrong on", varC
+		exit
+	    }
+	    varC = substr(varC, 1, 6)
+	}
+
+	if ( (varA % 1000 - varA % 100) / 100 == 1)
+	{
+	    varLatVorz = 1
+	    varLongVorz = 1
+	}
+	else if ((varA % 1000 - varA % 100) / 100 == 2)
+	{
+	    varLatVorz = -1
+	    varLongVorz = 1
+	}
+	else if ((varA % 1000 - varA % 100) / 100 == 3)
+	{
+	    varLatVorz = 1
+	    varLongVorz = -1
+	}
+	else if ((varA % 1000 - varA % 100) / 100 == 4)
+	{
+	    varLatVorz = -1
+	    varLongVorz = -1
+	}
+
+	if (((varC % 100000 - varC % 10000) / 10000 \
+	    + (varC % 100 - varC % 10) / 10) % 2 == 0)
+	    varLatKOMP = tonumber(varLatVorz * ( \
+		(varA % 10000 - varA % 1000) / 1000 * 10 \
+		+ (varB % 100 - varB % 10) / 10 \
+		+ (varB % 100000 - varB % 10000) / 10000 * 0.1 \
+		+ (varC % 1000 - varC % 100) / 100 * 0.01 \
+		+ (varA % 1000000 - varA % 100000) / 100000 * 0.001 \
+		+ (varC % 100 - varC % 10) / 10 * 1.0E-4 \
+		+ varA % 10 * 1.0E-5))
+	else if (((varC % 100000 - varC % 10000) / 10000 \
+	    + (varC % 100 - varC % 10) / 10) % 2 != 0)
+	    varLatKOMP = tonumber(varLatVorz * ( \
+		(varB % 1000000 - varB % 100000) / 100000 * 10 \
+		+ varA % 10 + (varA % 10000 - varA % 1000) / 1000 * 0.1 \
+		+ (varC % 1000000 - varC % 100000) / 100000 * 0.01 \
+		+ (varC % 1000 - varC % 100) / 100 * 0.001 \
+		+ (varC % 100 - varC % 10) / 10 * 1.0E-4 \
+		+ (varA % 1000000 - varA % 100000) / 100000 * 1.0E-5))
+      
+	if (((varC % 100000 - varC % 10000) / 10000 \
+	    + (varC % 100 - varC % 10) / 10) % 2 == 0)
+	    varLongKOMP = tonumber(varLongVorz * ( \
+		(varA % 100000 - varA % 10000) / 10000 * 100 \
+		+ (varC % 1000000 - varC % 100000) / 100000 * 10 \
+		+ varC % 10 + (varB % 1000 - varB % 100) / 100 * 0.1 \
+		+ (varB % 1000000 - varB % 100000) / 100000 * 0.01 \
+		+ (varA % 100 - varA % 10) / 10 * 0.001 \
+		+ (varC % 100000 - varC % 10000) / 10000 * 1.0E-4 \
+		+ varB % 10 * 1.0E-5))
+	else if (((varC % 100000 - varC % 10000) / 10000 \
+	    + (varC % 100 - varC % 10) / 10) % 2 != 0)
+	    varLongKOMP = tonumber(varLongVorz * ( \
+		(varB % 100 - varB % 10) / 10 * 100 \
+		+ varC % 10 * 10 \
+		+ (varA % 100 - varA % 10) / 10 \
+		+ (varA % 100000 - varA % 10000) / 10000 * 0.1 \
+		+ (varB % 1000 - varB % 100) / 100 * 0.01 \
+		+ varB % 10 * 0.001 \
+		+ (varC % 100000 - varC % 10000) / 10000 * 1.0E-4 \
+		+ (varB % 100000 - varB % 10000) / 10000 * 1.0E-5))
+      
+	printf "%f %f", lat=varLatKOMP, lon=varLongKOMP
+	ilat = int(varLatKOMP); ilon = int(varLongKOMP)
+	printf "    %s%02d.%06.3f %s%02d.%06.3f", \
+	    (varLatKOMP >= 0.0) ? "n" : "s", abs(ilat), abs(lat-ilat) * 60, \
+	    (varLongKOMP >= 0.0) ? "e" : "w", abs(ilon), abs(lon-ilon) * 60
+	printf "\n"
+	LastLat = lat
+	LastLon = lon
+
+	#return varLatKOMP, varLongKOMP
+    }
+    BEGIN {
+	if (length(a) == 20 && length(b) == 20)
+	{
+	    code1 = a
+	    code2 = b
+	    a = substr(code1, 1, 6)
+	    b = substr(code1, 8, 6)
+	    c = substr(code1, 15, 6)
+	    printf "start:\t"
+	    code2LatLong(a, b, c)
+	    a = substr(code2, 1, 6)
+	    b = substr(code2, 8, 6)
+	    c = substr(code2, 15, 6)
+	    printf "final:\t"
+	    code2LatLong(a, b, c)
+	}
+	else if (length(a) == 18)
+	{
+	    code2 = a
+	    a = substr(code2, 1, 6)
+	    b = substr(code2, 7, 6)
+	    c = substr(code2, 13, 6)
+	    code2LatLong(a, b, c)
+	}
+	else if (length(a) == 20)
+	{
+	    code2 = a
+	    a = substr(code2, 1, 6)
+	    b = substr(code2, 8, 6)
+	    c = substr(code2, 15, 6)
+	    code2LatLong(a, b, c)
+	}
+	else if (length(a) == 21)
+	{
+	    # Wonder Wherigo V1.5
+	    # reverse-wherigo 517334640960153006995
+	    code2 = a
+	    a = substr(code2, 1, 7)
+	    b = substr(code2, 8, 7)
+	    c = substr(code2, 15, 7)
+	    code2LatLong(a, b, c)
+	}
+	else if (length(a) == 42)
+	{
+            # Wonder Wherigo V1.5
+            # reverse-wherigo 517334640960153006995
+	    var_codeIdx = 0
+            code2 = a
+	    printf "start:\t"
+            a = substr(code2, 1, 7)
+            b = substr(code2, 8, 7)
+            c = substr(code2, 15, 7)
+            code2LatLong(a, b, c)
+            printf "final:\t"
+            fa = substr(code2, 22, 7)
+            fb = substr(code2, 29, 7)
+            fc = substr(code2, 36, 7)
+            code2LatLong(fa, fb, fc)
+	}
+	else if (length(a) == 63 || (length(a) >= 65 && length(a) <= 71) )
+	{
+	    # Wonder Wherigo V1.5
+	    # reverse-wherigo 517334640960153006995
+	    var_codeIdx = 0
+	    code2 = a
+	    printf "start:\t"
+	    a = substr(code2, 1, 7)
+	    b = substr(code2, 8, 7)
+	    c = substr(code2, 15, 7)
+	    code2LatLong(a, b, c)
+	    startlat = LastLat
+	    startlon = LastLon
+
+	    printf "middle:\t"
+	    fa = substr(code2, 22, 7)
+	    fb = substr(code2, 29, 7)
+	    fc = substr(code2, 36, 7)
+	    code2LatLong(fa, fb, fc)
+	    endlat = LastLat
+	    endlon = LastLon
+
+	    printf "final:\t"
+	    Fa = substr(code2, 43, 7)
+	    Fb = substr(code2, 50, 7)
+	    Fc = substr(code2, 57, 7)
+	    code2LatLong(Fa, Fb, Fc)
+	    if (0 && length(code2) == 70)
+	    {
+		Thresh = substr(code2, 64, 7)
+		if (CHECKDIGIT && GetCheckDigit(Thresh) \
+		    != substr(Thresh, 7, 1) )
+		{
+		    print "Checkdigit is wrong on", Thresh
+		    exit
+		}
+		Thresh = substr(Thresh, 1, 6)
+		Thresh = sqrt(Thresh) / 100.0
+		printf "threshhold: %g ft/sec or %f MPH\n",
+		    Thresh, Thresh * 3600 / 5280
+	    }
+	    if (length(code2) >= 65 && length(code2) <= 71)
+	    {
+		codeLength = length(code2) - 63
+		Thresh = substr(code2, 64)
+		tryCode = substr(Thresh, 1, codeLength - 1) \
+                        "0" \
+                        substr(Thresh, codeLength, codeLength)
+		# print codeLength,tryCode, GetCheckDigit(tryCode)
+		if (CHECKDIGIT && GetCheckDigit(tryCode) \
+		    != substr(Thresh, codeLength, 1) )
+                {
+                    print "Checkdigit is wrong on", Thresh
+                    exit
+                }
+		Thresh = substr(Thresh, 1, codeLength - 1)
+		Thresh = sqrt(Thresh)
+		printf "distance:    "
+		cmd = sprintf("geo-dist %.6f %.6f to %.6f %.6f", \
+		    startlat, startlon, endlat, endlon)
+		system(cmd)
+		printf "time(mm:ss): %02d:%02d\n", int(Thresh/60), Thresh%60
+	    }
+	}
+	else if (length(Fa) == 7 && length(Fb) == 7 && length(Fc) == 7)
+	{
+	    var_codeIdx = 0
+	    printf "start:\t"
+	    code2LatLong(a, b, c)
+	    startlat = LastLat
+	    startlon = LastLon
+
+	    printf "middle:\t"
+	    code2LatLong(fa, fb, fc)
+	    endlat = LastLat
+	    endlon = LastLon
+
+	    printf "final:\t"
+	    code2LatLong(Fa, Fb, Fc)
+	    if (Thresh != "")
+	    {
+		codeLength = length(Thresh)
+		tryCode = substr(Thresh, 1, codeLength - 1) \
+                        "0" \
+                        substr(Thresh, codeLength, codeLength)
+		if (CHECKDIGIT && GetCheckDigit(tryCode) \
+		    != substr(Thresh, codeLength, 1) )
+		{
+		    print "Checkdigit is wrong on", Thresh
+		    exit
+		}
+		Thresh = substr(Thresh, 1, codeLength - 1)
+		Thresh = sqrt(Thresh)
+		printf "distance:    "
+		cmd = sprintf("geo-dist %.6f %.6f to %.6f %.6f", \
+		    startlat, startlon, endlat, endlon)
+		system(cmd)
+		printf "time(mm:ss): %02d:%02d\n", int(Thresh/60), Thresh%60
+	    }
+	}
+	else if (length(fa) == 6 && length(fb) == 6 && length(fc) == 6)
+	{
+	    printf "start:\t"
+	    code2LatLong(a, b, c)
+	    printf "final:\t"
+	    code2LatLong(fa, fb, fc)
+	}
+	else if (length(fa) == 7 && length(fb) == 7 && length(fc) == 7)
+	{
+	    printf "start:\t"
+	    code2LatLong(a, b, c)
+	    printf "final:\t"
+	    code2LatLong(fa, fb, fc)
+	}
+	else if (length(a) == 6 && length(b) == 6 && length(c) == 6)
+	    code2LatLong(a, b, c)
+	else if (length(a) == 7 && length(b) == 7 && length(c) == 7)
+	    code2LatLong(a, b, c)
+	else
+	    print "reverse-wherigo: length != 6, 7, 18, 20, 21, 42, 63 or 70"
+    }
+    '
+}
+
+if [ $# = 0 ]; then
+    echo "Enter code(s):"
+    while read a; do
+	reverse-wherigo $a
+    done
+else
+    doit $*
+fi

@@ -1,0 +1,192 @@
+##############################################################################
+# begin #include "geo-common-gpsdrive"
+##############################################################################
+
+#
+# default MySQL global options...
+#
+SQLUSER=gast
+SQLPASS=gast
+SQLDB=geoinfo
+SQLITEDB=$HOME/.gpsdrive/waypoints.db
+SQLTAG=Geocache
+
+#
+# procedures for updating gpsdrive database via MySQL
+#
+#	Global Vars:	$SQLDB, $SQLTAG $OUTFILE
+#
+gpsdrive_create_210() {
+    echo "CREATE TABLE poi ("
+    echo "poi_id        INTEGER      PRIMARY KEY AUTOINCREMENT,"
+    echo "name          VARCHAR(80)  NOT NULL default 'not specified',"
+    echo "poi_type      VARCHAR(160) NOT NULL default 'unknown',"
+    echo "lat           DOUBLE       NOT NULL default '0',"
+    echo "lon           DOUBLE       NOT NULL default '0',"
+    echo "alt           DOUBLE                default '0',"
+    echo "comment       VARCHAR(255)          default NULL,"
+    echo "last_modified DATETIME     NOT NULL default '0000-00-00',"
+    echo "source_id     INTEGER      NOT NULL default '1',"
+    echo "private       CHAR(1)               default NULL);"
+    echo "CREATE TABLE poi_extra ("
+    echo "poi_id         INTEGER       NOT NULL default '0',"
+    echo "field_name     VARCHAR(160)  NOT NULL default '0',"
+    echo "entry          VARCHAR(8192) default NULL);"
+}
+
+gpsdrive_purge() {
+    case "$GPSDRIVE_VER" in
+    ""|"2.09")
+	delcmd="delete from waypoints"
+	echo "use $SQLDB;"
+	echo "$delcmd where type like '$SQLTAG%';"
+	;;
+    "2.10")
+	if [ ! -s $SQLITEDB ]; then
+	    gpsdrive_create_210
+	fi
+	SQLTAG=`echo $SQLTAG | tr A-Z a-z`
+	delcmd="delete from poi"
+	echo "$delcmd where poi_type like '$SQLTAG%';"
+	;;
+    esac
+}
+
+gpsdrive_add_209() {
+	delcmd="delete from waypoints"
+	addcmd="replace into waypoints (name,lat,lon,type)"
+	addcmd="insert into waypoints (name,lat,lon,type)"
+	sqltag="$1"
+	echo "use $SQLDB;"
+	while read name lat lon type extra
+	do
+		name=`echo "$name" | tr -d "'"`
+		# Primary key is autoincrementing id number, so delete
+		# the old record (if any) by name and type
+		if [ $PURGE = 0 ]; then
+		    echo "$delcmd where name='$name' and type like '$SQLTAG%';"
+		fi
+
+		if [ $DELETE = 0 ]; then
+		    # Add the new record
+		    if [ "$sqltag" = "Geocache" ]; then
+			tag="$type"
+		    else
+			tag="$sqltag"
+		    fi
+		    echo "$addcmd values ('$name','$lat','$lon','$tag');"
+		fi
+	done
+}
+
+gpsdrive_add_210(){
+    if [ ! -s $SQLITEDB ]; then
+	gpsdrive_create_210
+    fi
+    echo "PRAGMA synchronous=OFF;"
+    delcmd="delete from poi"
+    addcmd="replace into poi (name,poi_type,lat,lon,alt,comment,last_modified)"
+    addcmd="insert into poi (name,poi_type,lat,lon,alt,comment,last_modified)"
+    sqltag="$1"
+    sqltag=`echo "$sqltag" | tr A-Z a-z`
+    OIFS="$IFS"
+    IFS="|"
+    #while read name lat lon type extra
+    poi_id=0
+    egrep -v 'Geocache Found|-ifound' \
+	| tr -d "|" | tr '	' '|' | tr -d "'" |
+    while read index shortname description notes url urltext icon lat lon \
+        lat32 lon32 latdecdir londecdir latdirdec londirdec latdir londir \
+        altfeet altmeters excel timet diff terr container type \
+	pathmiles pathkm placer yyyymmmdd hint lastfound extra
+    do
+	if [ "$placer" = "$USERNAME" ]; then
+	    continue
+	fi
+	if [ "$placer" = "dyl1231" ]; then
+	    continue
+	fi
+
+	#name=`echo "$description" | tr -d "'"`
+	#For Performance...
+	name=${description//\'/}
+
+	# Primary key is autoincrementing id number, so delete
+	# the old record (if any) by name and type
+	if [ $PURGE = 0 ]; then
+	    echo "$delcmd where name='$name' and poi_type like '%$sqltag%';"
+	fi
+
+	((poi_id=poi_id+1))
+	if [ $DELETE = 0 ]; then
+	    # Add the new record
+	    if [ "$sqltag" = "geocache" ]; then
+		tag="$type"
+	    else
+		tag="$sqltag"
+	    fi
+	    case "$type" in
+	    "Earthcache")	poi_type="geocache.geocache_earth";;
+	    "Event Cache")	poi_type="geocache.geocache_event";;
+	    "Mega-Event Cache")	poi_type="geocache.geocache_event";;
+	    "Cache In Trash Out Event")	poi_type="geocache.geocache_event";;
+	    "found")		poi_type="geocache.geocache_found";;
+	    "Multi-cache")	poi_type="geocache.geocache_multi";;
+	    "Unknown Cache")	poi_type="geocache.geocache_mystery";;
+	    "night")		poi_type="geocache.geocache_night";;
+	    "Traditional Cache") poi_type="geocache.geocache_traditional";;
+	    "Virtual Cache")	poi_type="geocache.geocache_virtual";;
+	    "Webcam Cache")	poi_type="geocache.geocache_webcam";;
+	    *)			    poi_type="geocache";;
+	    esac
+	    printf "$addcmd values ('%s','%s'," "$name" "$poi_type"
+	    printf "'$lat','$lon',"
+	    printf "'0.0'," #alt
+	    printf "'$type $container $diff/$terr. Last Found: $lastfound.  %s'," "$hint"
+	    echo "'0');"
+	fi
+    done
+    IFS="$OIFS"
+}
+
+gpsdrive_add() {
+    case "$GPSDRIVE_VER" in
+    ""|"2.09")	gpsdrive_add_209 "$1";;
+    "2.10")	gpsdrive_add_210 "$1";;
+    esac
+}
+
+gpsdrive_mysql() {
+    if [ "$OUTFILE" != "" ]; then
+	cat >> $OUTFILE
+    elif [ $DEBUG -gt 0 ]; then
+	cat
+    else
+	mysql -u$SQLUSER -p$SQLPASS
+    fi
+}
+
+gpsdrive_sqlite3() {
+    if [ "$OUTFILE" != "" ]; then
+	cat >> $OUTFILE
+    elif [ $DEBUG -gt 0 ]; then
+	cat
+    else
+	sqlite3 $HOME/.gpsdrive/waypoints.db
+    fi
+}
+
+#
+# Extended list of gpsbabel output formats
+#
+gpsbabel_formats() {
+    gpsbabel -? | sed -e '1,/File Types/d' -e '/Supported data filters/,$d'
+    echo	"	gpsdrive.sql         " \
+	    "GpsDrive direct MySQL database insertion"
+    echo	"	map[,geo-map-opts]   " \
+	    "Display map of waypoints using geo-map"
+}
+
+##############################################################################
+# end #include "geo-common-gpsdrive"
+##############################################################################

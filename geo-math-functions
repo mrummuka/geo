@@ -1,0 +1,157 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Do various math functions
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [numbers] ...
+
+DESCRIPTION
+    Do various math functions on stdin or from 'numbers'.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Process https://coord.info/GC7ZHQV :
+
+	$ geo-math-functions 0.873223942397036 2.641443865775990
+	0.87322394239704:
+	0.01524063290210 rad    50.03204646905319 deg
+	sin(0.87322394239704)   0.76640384492927 rad    0.01524004290114 deg
+	asin(0.87322394239704)  1.06177928217641 rad    60.83547164305087 deg
+	cos(0.87322394239704)   0.64235904794564 rad    0.99988386380238 deg
+	acos(0.87322394239704)  0.50901704461849 rad    29.16452835681981 deg
+	tan(0.87322394239704)   1.19310819607874 rad    0.01524181302735 deg
+	atan(0.87322394239704)  0.71782320508013 rad    41.12824008758583 deg
+	sinh(0.87322394239704)  0.98850774300428 rad    0.01524122291675 deg
+	asinh(0.87322394239704) 0.78883151750611 rad    45.19671669993509 deg
+	cosh(0.87322394239704)  1.40611079150236 rad    1.00011614069367 deg
+	tanh(0.87322394239704)  0.70300843217916 rad    0.01523945299611 deg
+	atanh(0.87322394239704) 1.34649702738398 rad    77.14859679590231 deg
+	ln(0.87322394239704)    -0.13556323553768
+	e^0.87322394239704      2.39461853450664
+	log(0.87322394239704)   -0.05887436514296
+	10^0.87322394239704     7.46833761298015
+
+	2.64144386577599:
+	0.04610189246446 rad    151.34358532946749 deg
+	sin(2.64144386577599)   0.47955610688782 rad    0.04608556349197 deg
+	cos(2.64144386577599)   -0.87751121949899 rad   0.99893749596140 deg
+	tan(2.64144386577599)   -0.54649569855257 rad   0.04613458167132 deg
+	atan(2.64144386577599)  1.20889000416179 rad    69.26429513392371 deg
+	sinh(2.64144386577599)  6.98109654952919 rad    0.04611822490786 deg
+	asinh(2.64144386577599) 1.69851820947781 rad    97.31792482905598 deg
+	cosh(2.64144386577599)  7.05235485734009 rad    1.00106288047687 deg
+	acosh(2.64144386577599) 1.62654679789671 rad    93.19426669986599 deg
+	tanh(2.64144386577599)  0.98989581363213 rad    0.04606925879211 deg
+	ln(2.64144386577599)    0.97132568650716
+	e^2.64144386577599      14.03345140686928
+	log(2.64144386577599)   0.42184138578095
+	10^2.64144386577599     437.96949827778070
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+doit() {
+    awk '
+    BEGIN {
+	e = 2.7182818284590452353602
+	rad2deg = 57.295779513
+    }
+    function asin(x) { return atan2(x, sqrt(1-x*x)) }
+    function acos(x) { return atan2(sqrt(1-x*x), x) }
+    function atan(x) { return atan2(x,1) }
+    function tan(x) { return sin(x)/cos(x) }
+    function log10(x) { return log(x)/log(10) }
+    function asinh(x) { return log(x+sqrt(x*x+1)) }
+    function acosh(x) { return log(x+sqrt(x+1)*sqrt(x-1)) }
+    function atanh(x) { return .5*log( (1+x)/(1-x) ) }
+    function sinh(x) { return (e^x - e^(-x)) / 2 }
+    function cosh(x) { return (e^x + e^(-x)) / 2 }
+    function tanh(x) { return (e^(2*x) - 1) / (e^(2*x) + 1) }
+    {
+	for (i = 1; i <= NF; ++i)
+	{
+	    if (i >= 2) printf "\n"
+	    printf "%.14f:\n", $i
+	    printf "%.14f rad	%.14f deg\n",
+		$i/57.295779513, $i*57.295779513
+	    printf("sin(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, sin($i), sin($i/57.295779513)
+	    if (1-$i*$i >= 0.0)
+		printf("asin(%.14f)	%.14f rad	%.14f deg\n"), 
+		    $i, asin($i), asin($i)*57.295779513
+	    printf("cos(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, cos($i), cos($i/57.295779513)
+	    if (1-$i*$i >= 0.0)
+		printf("acos(%.14f)	%.14f rad	%.14f deg\n"),
+		    $i, acos($i), acos($i)*57.295779513
+	    printf("tan(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, tan($i), tan($i/57.295779513)
+	    printf("atan(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, atan($i), atan($i)*57.295779513
+	    printf("sinh(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, sinh($i), sinh($i/57.295779513)
+	    if ($i*$i+1 >= 0.0)
+		printf("asinh(%.14f)	%.14f rad	%.14f deg\n"),
+		    $i, asinh($i), asinh($i)*57.295779513
+	    printf("cosh(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, cosh($i), cosh($i/57.295779513)
+	    if ($i+1 >= 0.0 && $i-1 >= 0.0)
+		printf("acosh(%.14f)	%.14f rad	%.14f deg\n"),
+		    $i, acosh($i), acosh($i)*57.295779513
+	    printf("tanh(%.14f)	%.14f rad	%.14f deg\n"),
+		$i, tanh($i), tanh($i/57.295779513)
+	    if ( (1+$i) / (1-$i) >= 0.0 )
+		printf("atanh(%.14f)	%.14f rad	%.14f deg\n"),
+		    $i, atanh($i), atanh($i)*57.295779513
+	    printf("ln(%.14f) 	%.14f\n"), $i, log($i)
+	    printf("e^%.14f	%.14f\n"), $i, e ^ $i
+	    printf("log(%.14f)	%.14f\n"), $i, log10($i)
+	    printf("10^%.14f	%.14f\n"), $i, 10 ^ $i
+	}
+    }'
+}
+
+if [ $# = 0 ]; then
+    doit
+else
+    echo $* | doit
+fi

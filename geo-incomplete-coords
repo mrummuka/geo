@@ -1,0 +1,240 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Print out incomplete coordinates
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Print out incomplete coordinates. Variables can be:
+
+	abcd fghijklm opqr tuv xyz
+
+    Up to three variables can be specified.
+
+OPTIONS
+	-u		Unique coordinates. "-u -u" is really unique.
+	-v let=vals	Restrict the set of 'vals' for 'let' (e.g. -v a=13579)
+	-D lvl		Debug level
+ 
+EXAMPLES
+    a = 0-9:
+
+	$ geo-incomplete-coords n45.00.a12 w93.25.912
+	n45.00.012 w93.25.912
+	n45.00.112 w93.25.912
+	n45.00.212 w93.25.912
+	n45.00.312 w93.25.912
+	n45.00.412 w93.25.912
+	n45.00.512 w93.25.912
+	n45.00.612 w93.25.912
+	n45.00.712 w93.25.912
+	n45.00.812 w93.25.912
+	n45.00.912 w93.25.912
+
+    Use in geo-map:
+
+	$ geo-map -s0 \$(geo-incomplete-coords n45.00.a12 w93.25.b12)
+
+    Restrict values:
+
+	$ geo-incomplete-coords -v a=12 -v b=45 -v c=78 n45.00.abc w93.25.abc
+	n45.00.147 w93.25.147
+	n45.00.148 w93.25.148
+	n45.00.157 w93.25.157
+	n45.00.158 w93.25.158
+	n45.00.247 w93.25.247
+	n45.00.248 w93.25.248
+	n45.00.257 w93.25.257
+	n45.00.258 w93.25.258
+
+    Unique coords:
+
+	$ geo-incomplete-coords -u -v a=05689 -v b=05689 n41.32.a1a w73.47.b26
+	n41.32.010 w73.47.526
+	n41.32.010 w73.47.626
+	n41.32.010 w73.47.826
+	n41.32.010 w73.47.926
+	n41.32.515 w73.47.026
+	n41.32.515 w73.47.626
+	n41.32.515 w73.47.826
+	n41.32.515 w73.47.926
+	n41.32.616 w73.47.026
+	n41.32.616 w73.47.526
+	n41.32.616 w73.47.826
+	n41.32.616 w73.47.926
+	n41.32.818 w73.47.026
+	n41.32.818 w73.47.526
+	n41.32.818 w73.47.626
+	n41.32.818 w73.47.926
+	n41.32.919 w73.47.026
+	n41.32.919 w73.47.526
+	n41.32.919 w73.47.626
+	n41.32.919 w73.47.826
+
+    Really unique coords:
+
+	$ geo-incomplete-coords -u -u n41.32.00a w73.47.00b
+	n41.32.005 w73.47.006
+	n41.32.005 w73.47.008
+	n41.32.005 w73.47.009
+	n41.32.006 w73.47.005
+	n41.32.006 w73.47.008
+	n41.32.006 w73.47.009
+	n41.32.008 w73.47.005
+	n41.32.008 w73.47.006
+	n41.32.008 w73.47.009
+	n41.32.009 w73.47.005
+	n41.32.009 w73.47.006
+	n41.32.009 w73.47.008
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+VALS=
+DEBUG=0
+UNIQUE=0
+while getopts "uv:D:h?" opt
+do
+	case $opt in
+	u)	if [ $UNIQUE = 1 ]; then
+		    UNIQUE=2
+		else
+		    UNIQUE=1
+		fi
+		;;
+	v)	VALS="$VALS $OPTARG"
+		rc=`expr match $OPTARG '[enws]' `
+		if [ "$rc" != 0 ]; then
+		    error "-v $OPTARG is equal to one of n, e, s, or w"
+		fi
+		;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+doit()
+{
+    awk -v "VALS=$VALS" -v UNIQUE=$UNIQUE '
+    BEGIN {
+	nvals = split(VALS, val)
+	for (i = 1; i <= nvals; ++i)
+	{
+	    tmp = val[i]
+	    let = substr(tmp, 1, 1)
+	    sub(".*=", "", tmp)
+	    val[let] = tmp
+	}
+    }
+    {
+	if (UNIQUE > 1)
+	{
+	    tmp = $0
+	    gsub(/[^0123456789]/, "", tmp)
+	    unique = ""
+	    for (i = 0; i <= 9; ++i)
+	    {
+		if (match(tmp, i+"") != 0) continue;
+		unique = unique "" i
+	    }
+	}
+	else
+	    unique = "0123456789"
+	wildcards = $0; gsub(/[^abcdfghijklmopqrtuvxyz]/, "", wildcards)
+	for (i = 1; i <= length(wildcards); ++i)
+	{
+	    tmp = substr(wildcards, i+1)
+	    # print tmp
+	    c = substr(wildcards, i, 1)
+	    gsub(c, "", tmp)
+	    wildcards = substr(wildcards, 1, i) tmp
+	    if (val[c] == "")
+		val[c] = unique
+	}
+
+	# print wildcards
+	temp = $0
+	if (length(wildcards) >= 1)
+	{
+	    let1 = substr(wildcards, 1, 1)
+	    for (j = 0; j <= 9; ++j)
+	    {
+		if (!match(val[let1], j))
+		    continue
+		new1 = temp
+		gsub(substr(wildcards, 1, 1), j+"", new1)
+		if (length(wildcards) >= 2)
+		{
+		    let2 = substr(wildcards, 2, 1)
+		    for (k = 0; k <= 9; ++k)
+		    {
+			if (!match(val[let2], k))
+			    continue
+			if (UNIQUE && k == j)
+			    continue
+			new2 = new1
+			gsub(substr(wildcards, 2, 1), k+"", new2)
+			if (length(wildcards) >= 3)
+			{
+			    let3 = substr(wildcards, 3, 1)
+			    for (l = 0; l <= 9; ++l)
+			    {
+				if (!match(val[let3], l))
+				    continue
+				if (UNIQUE && l == k)
+				    continue
+				if (UNIQUE && l == j)
+				    continue
+				new3 = new2
+				gsub(substr(wildcards, 3, 1), l+"", new3)
+				print new3
+			    }
+			}
+			else
+			    print new2
+		    }
+		}
+		else
+		    print new1
+	    }
+	}
+	else
+	    print temp
+    }
+    '
+}
+
+echo $* | doit

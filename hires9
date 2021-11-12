@@ -1,0 +1,53 @@
+#!/bin/bash
+LAT=$1
+LON=$2
+LAT=45
+LON=-93.5
+
+case "$#" in
+2)
+    LAT=$1
+    LON=$2
+    ;;
+*)
+    LAT=44.947500
+    LON=-93.491083
+    LAT=44.8814594
+    LON=-93.424415
+    ;;
+esac
+
+WAYPOINTS="$LAT $LON"
+
+PICS=
+PICI=0
+
+do1() {
+    echo $1 $2
+    PIC=xxx$PICI.png
+    geo-map -s$SCALE -atscom -o$PIC -C $1 $2 "" "" $WAYPOINTS
+    PICS="$PICS $PIC"
+    ((++PICI))
+}
+
+SCALE=1fpp; DELTA=500ft
+SCALE=6ipp; DELTA=250ft
+SCALE=2fpp; DELTA=1000ft
+
+left=$(geo-project -l -L $LAT $LON $DELTA 270)
+leftup=$(geo-project -l -L $left $DELTA 0)
+right=$(geo-project -l -L $LAT $LON $DELTA 90)
+rightup=$(geo-project -l -L $right $DELTA 0)
+up=$(geo-project -l -L $LAT $LON $DELTA 0)
+do1 $leftup
+do1 $up
+do1 $rightup
+do1 $left
+do1 $LAT $LON
+do1 $right
+do1 $(geo-project -l -L $left $DELTA 180)
+do1 $(geo-project -l -L $LAT $LON $DELTA 180)
+do1 $(geo-project -l -L $right $DELTA 180)
+
+montage -tile 3x3 -border 0x0 -geometry 500! $PICS xxx.png
+xv xxx.png

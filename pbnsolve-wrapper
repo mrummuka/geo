@@ -1,0 +1,133 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Wrapper for .non format nonograms
+
+SYNOPSIS
+    `basename $PROGNAME` [options] skel.nono ...
+
+DESCRIPTION
+    Nonogram (paint-by-number) solver using a program by Jan Wolter in
+    Steven Simpson's .non format.
+
+OPTIONS
+	-v		Clear screen and print the grid while it is being
+			solved in case of Warning: puzzle has imbalance 
+	-p png-file	Convert and image it into a PNG png-file
+	-P pdf-file	Convert and image it into a PDF pdf-file
+	-D lvl		Debug level
+
+EXAMPLE
+    Solve GC6EQAP.nono:
+
+        $ pbnsolve-wrapper GC6EQAP.nono
+	GC6EQAP
+	UNIQUE SOLUTION:
+        ██    ██  ████████  ████████  ██        
+        ██    ██  ██    ██  ██        ██        
+        ████████  ████████  ████████  ██████████
+              ██        ██        ██  ██      ██
+              ██        ██  ████████  ██████████
+
+        ██        ████████  ████████  ████████  
+        ██        ██    ██  ██    ██  ██    ██  
+        ████████  ████████  ██    ██  ██    ██  
+        ██    ██        ██  ██    ██  ██    ██  
+        ████████        ██  ████████  ████████  
+
+        ████████    ██████  ████████  ████████  
+        ██    ██        ██  ██    ██        ██  
+        ████████        ██  ██    ██  ████████  
+              ██        ██  ██    ██  ██        
+              ██        ██  ████████  ████████  
+
+        ████████  ████████  ████████            
+        ██    ██  ██        ██    ██    ██  ██  
+        ████████  ████████  ████████      ██    
+        ██    ██        ██  ██    ██  ██      ██
+        ████████  ████████  ████████    ██████  
+
+SEE ALSO
+    http://webpbn.com/pbnsolve.html
+
+    geo-nonogram
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+PDFFILE=
+PNGFILE=
+VERBOSE=-x
+while getopts "vp:P:D:h?" opt
+do
+	case $opt in
+        v)      VERBOSE=-v;;
+        p)      PNGFILE="$OPTARG";;
+        P)      PDFFILE="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    usage
+fi
+
+doit() {
+    sed '/^$/d' < $1 | pbnsolve -f non | sed -e 's/X/██/g' -e 's/\./  /g'
+}
+
+check_uniprint() {
+    if ! type uniprint >/dev/null 2>&1; then
+        error "No uniprint: Try: yum install yudit OR apt-get install yudit"
+    fi
+}
+
+for i in $*; do
+    if [ $# != 1 ]; then
+	echo "$i:"
+    fi
+    if [ "$PDFFILE" != "" ]; then
+	check_uniprint
+	doit $i \
+	| uniprint -out - -size 8 -hsize 0 \
+		-font /usr/share/fonts/gnu-free/FreeMono.ttf 2>/dev/null \
+	| ps2pdf - $PDFFILE
+	# doit $i | paps | ps2pdf - $PDFFILE
+    elif [ "$PNGFILE" != "" ]; then
+	check_uniprint
+	doit $i \
+	| uniprint -out - -size 8 -hsize 0 \
+		-font /usr/share/fonts/gnu-free/FreeMono.ttf 2>/dev/null \
+	| convert -trim - $PNGFILE
+    else
+	doit $i
+    fi
+done

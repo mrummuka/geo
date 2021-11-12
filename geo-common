@@ -1,0 +1,366 @@
+##############################################################################
+# begin #include "geo-common"
+##############################################################################
+
+# I doubt this stuff will work in other than english
+LANG=en_US
+
+#
+#	Common global constants
+#
+UA="Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)"
+WEBHOME="http://geo.rkkda.com/"
+
+#
+#	Common global variables
+#
+DEBUG=0
+CRUFT=
+CURL_OPTS=
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+        if [ $DEBUG -ge $1 ]; then
+            echo "`basename $PROGNAME`: $2" >&2
+        fi
+}
+
+verbose() {
+        if [ $VERBOSE -ge $1 ]; then
+            echo "$2" >&2
+        fi
+}
+
+dbgcmd() {
+	if [ $DEBUG -ge $DBGCMD_LVL ]; then
+	    echo "$@" >&2
+	fi
+	"$@"
+}
+DBGCMD_LVL=2
+
+#
+#	procedure to remove cruft files
+#
+remove_cruft() {
+	if [ $DEBUG = 0 -a "$CRUFT" != "" ]; then
+	    for i in $CRUFT
+	    do
+		if [ -f $i ]; then
+		    rm -f $i
+		elif [ -d $i ]; then
+		    rm -rf $i
+		fi
+	    done
+	fi
+}
+
+trap remove_cruft EXIT
+
+#
+# Convert DegDec, MinDec, or DMS lat/lon to DegDec
+#
+latlon() {
+    # Handle NSEW prefixes
+    arg1=`echo "$1" | sed -e 's/^[nNeE]//' -e 's/^[wW]/-/' -e 's/^[sS]/-/'`
+    # If negative, print the sign then take the absolute value
+    case "$arg1" in
+    -*)	printf "-"; arg1=`echo "$arg1" | sed 's/^-//'`;;
+    esac
+    # Now handle the 3 different formats
+    case $# in
+    1)	
+	case "$arg1" in
+	*.*.*)	echo "$arg1" \
+		| sed -e 's/,//' -e 's#\([^.]*\)\.#\1 #' -e 's#$# 6k 60/+p#' \
+		| dc
+		;;
+	lat=*)
+		echo "$arg1" | sed 's/^lat=//'
+		;;
+	lon=*)
+		echo "$arg1" | sed 's/^lon=//'
+		;;
+	*)	echo "$arg1"
+		;;
+	esac
+	;;
+    2)	echo "6k $arg1 $2 60/+p" | dc;;
+    3)	echo "6k $arg1 $2 60/ $3 3600/++p" | dc;;
+    esac
+}
+
+#
+#	Convert DegDec to MinDec with optional NS/EW
+#
+degdec2mindec() {
+    awk -v v=$1 -v sym=$2 \
+    '
+    function abs(x)     { return (x>=0) ? x : -x }
+    BEGIN{
+	i=int(v)
+	if (sym == "")
+	    printf "%d.%06.3f\n", i, abs(v-i) * 60
+	else
+	    printf "%s%02d.%06.3f\n", \
+		(v >= 0.0) ? substr(sym, 1, 1) : substr(sym, 2, 1), \
+		abs(i), abs(v-i) * 60
+    }'
+}
+
+#
+#	Read RC file, if there is one
+#
+read_rc_file() {
+    if [ -f $HOME/.georc ]; then
+	. $HOME/.georc
+	# Allow LAT/LON in rc file to be in any of the formats that we grok
+	if [ "" != "$LAT" ]; then
+	    if ! is_latlon $LAT 0; then
+		error "Latitude '$LAT' is not parsed in .georc!"
+	    fi
+	    LAT=`latlon $LAT`
+	fi
+	if [ "" != "$LON" ]; then
+	    if ! is_latlon 0 $LON; then
+		error "Longitude '$LON' is not parsed in .georc!"
+	    fi
+	    LON=`latlon $LON`
+	fi
+    else
+	cat <<-EOF > $HOME/.georc
+		#
+		# These are the default values for the geo-* series of programs
+		# Please edit this file as needed.  Setting values for
+		# USERNAME, PASSWORD, LAT/LON, and STATE are required.
+		#
+
+		#################################
+		# Login and paid membership status for www.geocaching.com...
+		#USERNAME=name
+		#PASSWORD=pasword
+		# Premium Member (Subscriber) Only Caches set this to a "1"...
+		#SOC=0
+
+		#################################
+		# Your HOME lat/lon and state...
+		#LAT=N44.55.666
+		#LON=W93.11.222
+		#STATE=MN
+
+		#################################
+		# Default map scale, font, and source...
+		#MAPSCALE=10K
+		#MAPFONT=helvetica
+		#MAPSRC=2
+		#Google Maps API Key, otherwise you will get:
+		#	"For development purposes only" on all maps!
+		#GMAP_KEY=AAaaAaA0A00AAaAA0AA0aaAAAAAAaaAAAAaa00A
+
+		#################################
+		# Login for terraserver.com...
+		#TSCOM_EMAIL=xxx@yyy.com
+		#TSCOM_PW=password
+
+		#################################
+		# Miscellaneous...
+		#OUTFMT=gpsdrive
+		#GPSDRIVE_VER=2.09
+		#Basic members: Cache the GCxxxxx listing for this many days:
+		#CACHE_CACHE_MAX_AGE="1 day"
+		#GEOMYSTERY=$HOME/.geo-mystery
+		#OCMYSTERY=$HOME/.oc-mystery
+		#DATEFMT=0
+		#CURL_OPTS="-4"
+		#CURL_OPTS="--sslv3"
+	EOF
+	error "First time user: please review and edit $HOME/.georc"
+    fi
+}
+
+if [ `uname` = 'Darwin' ]; then
+    sed=gsed
+    date=gdate
+    touch=gtouch
+    awk=gawk
+    PATH=$PATH:/usr/local/bin:/opt/local/bin
+    export PATH
+elif [ `uname` = 'FreeBSD' ]; then
+    sed=gsed
+    date=gdate
+    touch=gtouch
+    awk=gawk
+else
+    sed=sed
+    date=date
+    touch=touch
+    awk=awk
+fi
+
+#
+#	Get the value from a name= value= pair in a file
+#
+get_value() {
+    # <input type="hidden" name="__EVENTTARGET" value=""
+    what=$1
+    where=$2
+    eval $what=`$sed -n "s/^.*\"$what\" *value=\"\([^\"]*\)\".*/\1/p" < $where`
+}
+#
+#	Get the hidden value from a name= value= pair in a file
+#
+#	NOTE: sometimes they are two, thus the "tail -1"
+#
+get_hidden_value() {
+    # <input type="hidden" name="__EVENTTARGET" value=""
+    what=$1
+    where=$2
+    eval $what=`$sed -n "s/^.*\"$what\" *type=\"hidden\" *value=\"\([^\"]*\)\".*/\1/p" < $where | tail -1`
+}
+
+#
+#	urlencode
+#
+#	incomplete, just does what we need it to do
+#
+urlencode() {
+    echo "$1" | sed -e 's/\+/%2B/g' -e 's/\&/%26/g' #-e 's/\//%2F/'
+}
+
+#
+#	urlencode2
+#
+urlencode2() {
+    echo "$1" |
+    awk '
+	BEGIN {
+	    split("1 2 3 4 5 6 7 8 9 A B C D E F", hextab, " ")
+	    hextab[0] = 0
+	    for (i = 1; i <= 255; ++i) ord[ sprintf ("%c", i) "" ] = i + 0
+	}
+	{
+	    encoded = ""
+	    for (i = 1; i <= length($0); ++i ) {
+		c = substr ($0, i, 1)
+		val = ord[c]
+		if (val >= 97 && val <= 122)		#0x61-0x7A
+		    encoded = encoded c
+		else if (val >= 65 && val <= 90)	#0x41-0x5A
+		    encoded = encoded c
+		else if (val >= 48 && val <= 57)	#0x30-0x39
+		    encoded = encoded c
+		else if (val >= 45 && val <= 46)	#0x2D-0x2E
+		    encoded = encoded c
+		else if (c == " ")
+		    encoded = encoded "+"
+		else if (val < 128) {
+		    lo = val % 16
+		    hi = int(val / 16);
+		    encoded = encoded "%" hextab[hi] hextab[lo]
+		}
+		else {
+		    byte = 192 + val/64
+		    lo = byte % 16
+		    hi = int(byte / 16);
+		    encoded = encoded "%" hextab[hi] hextab[lo]
+		    byte = 128 + val%64
+		    lo = byte % 16
+		    hi = int(byte / 16);
+		    encoded = encoded "%" hextab[hi] hextab[lo]
+		}
+	    }
+	    print encoded
+	}
+    '
+}
+
+#
+#	return true if current arguments appear to be a lat/lon
+#
+is_latlon() {
+    if [ "$#" -lt 2 ]; then
+	return 1
+    fi
+    case "$1" in
+    lat=*)		;;		# cut/paste from GPX file
+    [NSns])		return 0;;	# cut/paste from gc.com
+    [NSns][0-9]*)	;;
+    [-][0-9]*)		;;
+    [0-9]*)		;;
+    *)			return 1;;
+    esac
+    case "$2" in
+    lon=*)		return 0;;
+    [EWew][0-9]*)	return 0;;
+    [-][0-9]*)		return 0;;
+    [0-9]*)		return 0;;
+    *)			return 1;;
+    esac
+}
+
+#
+#	split lines between two strings
+#
+#	$1 - string 1
+#	$2 - string 2
+#	$3 - null or 'g'
+#
+split_lines_between() {
+    sed "s@$1$2@$1\\
+$2@$3"
+}
+
+#
+#	process lat/lon calling a function with a shift count
+#
+#	e.g.	process_latlon encode 0 $@
+#
+process_latlon() {
+    prog=$1
+    shiftnum=$2
+    shift 2
+    shifttot=`expr 2 + $shiftnum`
+    case "$shiftnum" in
+    [0-9])	;;
+    *)		error "shift number is not 0-9!";;
+    esac
+
+    while [ $# -ge $shifttot ]; do
+	case "$1" in
+        N|S)
+            if [ $# -ge 6 ]; then
+                # Allow cut and paste from geocaching.com cache page
+                # N 44° 58.630 W 093° 09.310
+                lat=`echo "$1$2.$3" | tr -d '\260\302' `
+                lat=`latlon $lat`
+                lon=`echo "$4$5.$6" | tr -d '\260\302' `
+                lon=`latlon $lon`
+                shift 6
+            else
+                error "Illegal lat/lon: $*"
+            fi
+            ;;
+        *)
+            lat=`latlon $1`
+            lon=`latlon $2`
+            shift 2
+            ;;
+        esac
+
+	$prog $lat $lon $@
+
+	shift $shiftnum
+    done
+    
+}
+
+##############################################################################
+# end #include "geo-common"
+##############################################################################

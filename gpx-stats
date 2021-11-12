@@ -1,0 +1,196 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Compute stats from a GPX file
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    `basename $PROGNAME` [options]
+
+	Compute stats from a GPX file
+
+	Options:
+	    -l		Sort by # of logs
+	    -a		Sort by cache age
+	    -f		Sort by log frequency
+	    -D lvl	Debug level
+
+    `basename $PROGNAME` -H [options]
+
+	Add headers to stdin
+
+	Options:
+	    -l		Sort by # of logs
+	    -a		Sort by cache age
+	    -f		Sort by log frequency
+	    -t		Top caches only
+	    -D lvl	Debug level
+
+EXAMPLES
+	Statistics:
+
+	 gpx-stats all-mn.gpx
+
+	 gpx-stats -l all-mn.gpx | gpx-stats -H
+
+	 gpsbabel -igpx -fall-mn.gpx -x radius,lat=45,lon=-93.5,distance=20 \\
+	    -ogpx -Ftc.gpx
+	 gpx-stats -l tc.gpx | gpx-stats -H -t
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+if [ `uname` = 'Darwin' ]; then
+    sed=gnused
+    date=gdate
+    PATH=$PATH:/usr/local/bin:/opt/local/bin
+    export PATH
+else
+    sed=sed
+    date=date
+fi
+
+#
+#       Process the options
+#
+DEBUG=0
+HDRS=0
+TOP=0
+PREPOST=cat
+while getopts "laftHD:h?" opt
+do
+	case $opt in
+	l)	PREPOST="sort -n -r -k2";;
+	a)	PREPOST="sort -n -r -k3";;
+	f)	PREPOST="sort -n -r -k4";;
+	t)	TOP=1;;
+	H)	HDRS=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $HDRS = 1 ]; then
+    $PREPOST $* | awk -F'	' -vTOP=$TOP '
+    BEGIN {
+	print "ID        LOGS  MONTHS  LOGS/MONTH      NAME"
+    }
+    {
+	++num
+	id = $1
+	logs = $2
+	age = $3
+	avelogs = $4
+	name = $5
+	if (age > 0)
+	{
+	    t_age += age
+	    t_logs += logs
+	    ++t_num
+	}
+	if (!TOP)
+	    print
+	else if (num <= 25)
+	    print
+    }
+    END {
+	print ""
+	print "Total Number of caches:             ", num
+	print "Average Age of All Caches:          ", t_age/t_num, "months"
+	print "Average #Logs per Cache:            ", t_logs/t_num
+	print "Average #Logs/Month for all Caches: ", t_logs/t_age
+    }'
+
+else
+    awk -v "DATE=$date" \
+    '
+    function de_entity(s) {
+	gsub("&amp;", "\\&", s);
+	gsub("&amp;", "\\&", s);
+	gsub("&lt;", "<", s);
+	gsub("&gt;", ">", s);
+	gsub("&quot;", "\"", s);
+	gsub("&apos;", "'"'"'", s);
+	return s
+    }
+    BEGIN {
+	cmd = "date +%s"
+	cmd | getline now; close(cmd)
+    }
+    /<wpt/ {
+	logs = 0
+	++num
+    }
+    /<time>/ {
+	sub(".*<time>", ""); sub("<.*", "")
+	sub("T.*", "")
+	placed_str = $0
+	cmd = DATE " -d " placed_str " +%s"
+	cmd | getline placed; close(cmd)
+	age = int( (now - placed) / (60 * 60 * 24) ) + 1
+    }
+    /<groundspeak:date>/ {
+	sub(".*<groundspeak:date>", ""); sub("<.*", "")
+	sub("T.*", "")
+	logged_str = $0
+
+	if (logged_str < placed_str)
+	{
+	    cmd = DATE " -d " logged_str " +%s"
+	    cmd | getline logged; close(cmd)
+
+	    logage = int( (now - logged) / (60 * 60 * 24) ) + 1
+	    if (logage > age)
+		age = logage
+	}
+    }
+    /<groundspeak:name>/ {
+	sub(".*<groundspeak:name>", ""); sub("<.*", "")
+	name = de_entity($0)
+    }
+    /<groundspeak:placed_by>/ {
+	sub(".*<groundspeak:placed_by>", ""); sub("<.*", "")
+	owner = de_entity($0)
+    }
+    /<name>/ {
+	sub(".*<name>", ""); sub("<.*", "")
+	id = $0
+    }
+    /<groundspeak:log / {
+	++logs
+    }
+    /<.wpt>/ {
+	ave = 30 * logs / age
+	printf "%s	%6d	%6.2f	%8.3f	%s\n",
+	     id, logs, age/30.0, ave, name " by " owner
+	t_age += age
+	t_logs += logs
+    }
+    ' $* | $PREPOST
+fi

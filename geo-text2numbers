@@ -1,0 +1,95 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - grep for numbers in text
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file] ...
+
+DESCRIPTION
+    grep for numbers in text using stdin or files.
+
+OPTIONS
+    -p pat	grep for 'pat' instead of numbers
+    -D lvl	Debug level
+
+EXAMPLE
+    Grep for http://coord.info/GC51TNR:
+
+	$ geo-text2numbers 
+	If this event takes place we would be elated. If our favorite freighter
+	sails again please phone us. it's even possible it would come this way.
+	We would love to see her again.
+	seven
+	four
+	eight
+	one
+	seven
+	two
+
+    Grep using pattern:
+
+	$ geo-text2numbers  -p '<em>.' GC6KWN9.html
+	<em>n
+	<em>t
+	<em>h
+	<em>r
+	<em>e
+	<em>e
+	<em>s
+	<em>e
+	<em>v
+	<em>e
+	<em>n
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+PAT=
+while getopts "p:D:h?" opt
+do
+	case $opt in
+	p)	PAT="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+FILES=$*
+
+#
+#	Main Program
+#
+if [ "$PAT" = "" ]; then
+    cat $FILES | tr -d -c '[a-zA-Z]' |
+    tr A-Z a-z |
+    egrep -o --color \
+    'north|east|south|west|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eightteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|nought|nil'
+else
+    cat $FILES | grep -o "$PAT"
+fi

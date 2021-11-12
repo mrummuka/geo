@@ -1,0 +1,98 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - mayan long count
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [integer]...
+
+DESCRIPTION
+    Perform a Mayan long count on stdin or the listed integer(s).
+    Output both a vigesimal (base-20) and a long count (base 20 and
+    base 18) date.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    From the command line:
+    
+	$ mayan-long-count  6 6 6 6
+	50526 = 6*8000 + 6*400 + 6*20 + 6*1
+	45486 = 6*7200 + 6*360 + 6*20 + 6*1
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+dolongcount() {
+    awk '
+    function longcount(arg1) {
+	i = 0
+	for (j = 1; j <= NF; ++j)
+	    v[i++] = $j
+	n = i
+	b = 1
+	t = 0
+	s = ""
+	for (i = n-1; i >= 0; --i)
+	{
+	    t += v[i] * b
+	    s =  " + " v[i] "*" b s
+	    # print v[i], t, b
+	    if (i == 0) break
+	    if (b == 20 && arg1 == "")
+		b *= 18
+	    else
+		b *= 20
+	}
+	sub("^ .", "=", s)
+	print t, s
+    }
+    {
+	longcount(18)
+	longcount("")
+    }
+    '
+}
+if [ $# = 0 ]; then
+    dolongcount
+else
+    echo "$*" | dolongcount
+fi

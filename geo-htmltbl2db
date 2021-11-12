@@ -1,0 +1,274 @@
+#!/bin/sh
+
+#
+#	Usage message
+#
+usage() {
+cat <<EOF
+NAME
+	`basename $0` - Convert HTML tables into text
+
+SYNOPSIS
+	`basename $0` [options] [html-file]
+
+OPTIONS
+	-F OFS		Output field separator string [space].
+	-t nth		Process nth table only
+	-v FMT1=str	Sprintf style format for field1.
+			Use FMT2...FMT16 for other fields.
+			A "*" in the format, such as "%*s", means use the
+			width of the column in the first row to replace
+			the "*".  "%*.*s" and "%-*.*s" also work.
+	-v FMT=str	Default format for all columns [%s].
+	-v FCOL=num	First column to process [1]
+	-v LCOL=num	Last column to process [max]
+	-v FROW=num	First row to process [1]
+	-v LROW=num	Last row to process [max]
+	-v FTBL=num	First table to process [1]
+	-v LTBL=num	Last table to process [max]
+	-v TSEP=str	Separate multiple tables with "str" []
+	-h bool		Output table header (<th>) lines [1]
+	-s search	Process after /search/ string []
+	-D level	Set debugging level [0]
+EOF
+	exit 1
+}
+
+#
+#	Process options
+#
+OFS=" "
+VARS=""
+DEBUG=0
+HDRS=1
+SEARCH=
+
+while getopts h:s:t:v:F:D:h? opt
+do
+        case $opt in
+        h)      HDRS="$OPTARG";;
+        D)      DEBUG="$OPTARG";;
+        F)      OFS="$OPTARG";;
+        s)      SEARCH="1,/$OPTARG/d";;
+        t)      VARS="$VARS -v FTBL=$OPTARG";;
+        v)      VARS="$VARS -v $OPTARG";;
+        h|\?)   usage;;
+        esac
+done
+shift `expr $OPTIND - 1`
+
+VARS="$VARS -v HDRS=$HDRS"
+
+FILES="$*"
+if [ "$DEBUG" = 0 ];then
+	LOG=cat
+else
+	LOG="tee /tmp/ht2db.1"
+fi
+
+if [ "$OFS" = t ]; then
+    OFS="	"
+fi
+
+#
+#	Main processing
+#
+awk=awk
+if [ `uname` = "Darwin" ]; then
+    awk=gawk
+    if ! which -s $awk; then
+	error "'$awk' not found.  Install it from http://rudix.org/packages/gawk.html"
+    fi
+fi
+
+#
+#	First a sed to get the data into one basic tag per line for
+#	easy parsing. Then run awk to process the data.
+#
+cat $FILES |
+tr -d '\r' |
+sed -e "$SEARCH" -e '
+	# Insure complete tag is on one line
+	/<[^\/ 	>]*[ 	][^>]*$/N
+	/<[^\/ 	>]*[ 	][^>]*$/N
+	/<[^\/ 	>]*[ 	][^>]*$/N
+	/<[^\/ 	>]*[ 	][^>]*$/N
+	# get rid of tag attributes
+	s?\(<[^/ 	>]*\)[ 	][^>]*?\1?g
+	# get rid of all tags that dont start with T
+	s?<[^Tt/][^>]*>??g
+	s?</[^Tt][^>]*>??g
+	# get rid of special characters
+	s?&nbsp;? ?g
+	# get rid of whitespace
+	s?^[ 	]*??g
+	s?[ 	]*<?<?g
+	s?[ 	]*$??g
+	# Insure each tag on its own line
+	s?\(.\)<?\1\
+<?g
+	s?>\(.\)?>\
+\1?g
+	# get rid of blank lines
+	/^[ 	]*$/d
+	/^$/d
+' | $LOG |
+$awk -v OFS="$OFS" -v DEBUG=$DEBUG $VARS '
+BEGIN {
+	fmt[1] = FMT1; fmt[2] = FMT2; fmt[3] = FMT3; fmt[4] = FMT4;
+	fmt[5] = FMT5; fmt[6] = FMT6; fmt[7] = FMT7; fmt[8] = FMT8;
+	fmt[9] = FMT9; fmt[10] = FMT10; fmt[11] = FMT11; fmt[12] = FMT12;
+	fmt[13] = FMT13; fmt[14] = FMT14; fmt[15] = FMT15; fmt[16] = FMT16;
+	fmt[0] = FMT;
+	# default format is variable length string
+	if ( FMT == "" )
+		fmt[0] = "%s"
+	if (FCOL == 0)
+		FCOL = 1
+	if (LTBL == 0)
+		if (FTBL)
+			LTBL=FTBL
+		else
+			LTBL=99999
+}
+
+function end_td() {
+	incol=0
+	if (inhdr)
+		next
+	if (!intbl || table < FTBL || table > LTBL)
+		next
+	if (FCOL && col < FCOL)
+		next
+	if (LCOL && col > LCOL)
+		next
+	if (row == 1)
+		colwidth[col] = length(val)
+	if (FROW && row < FROW)
+		next
+	if (LROW && row > LROW)
+		next
+
+	cfmt = fmt[col]
+	if (cfmt == "")
+		cfmt = fmt[0]
+
+	stars = gsub("[*]", "*", cfmt)
+	if (DEBUG > 1)
+		printf "(%d,%d): %d <%s><%d><%s>\n", \
+			row, col, stars, cfmt, colwidth[col], val
+
+	if (stars == 0)
+		printf cfmt, val
+	else if (stars == 1)
+		printf cfmt, colwidth[col], val
+	else if (stars == 2)
+		printf cfmt, colwidth[col], colwidth[col], val
+	else
+		printf "<BUG!>"
+}
+
+# <table>
+/<[Tt][Aa][Bb][Ll][Ee]>/ {
+	if (FTBL || LTBL)
+	{
+		++table;
+		if (table > FTBL && table <= LTBL)
+			printf "%s", TSEP
+	}
+	intbl=1; col=0; row=0;
+	next
+}
+# </table>
+/<\/[Tt][Aa][Bb][Ll][Ee]>/ {
+	# Fix for bad HTML without closing /td
+	if (incol)
+	{
+		# fix for missing </td>
+		end_td();
+	}
+	# Fix for bad HTML without closing /tr
+	if (inrow && intbl && table >= FTBL && table <= LTBL &&
+		(!FROW || row >= FROW) && (!LROW || row <= LROW))
+		printf "\n"
+	intbl=0
+	next
+}
+# <tt>
+/<[Tt][Tt]>/ {
+	next
+}
+# </tt>
+/<\/[Tt][Tt]>/ {
+	next
+}
+
+# <tr>
+/<[Tt][Rr]>/ {
+	# Fix for bad HTML: two tr in a row
+	if (inrow && col == 0)
+		next
+	# end fix
+	# Fix for bad HTML without closing /td
+	if (incol)
+	{
+		# fix for missing </td>
+		end_td();
+	}
+	# Fix for bad HTML without closing /tr
+	if (inrow && intbl && table >= FTBL && table <= LTBL &&
+		(!FROW || row >= FROW) && (!LROW || row <= LROW))
+		printf "\n"
+	# end fix
+	col=0; ++row
+	inrow=1
+	next
+}
+# </tr>
+/<\/[Tt][Rr]>/ {
+	if (intbl && !inhdr && table >= FTBL && table <= LTBL &&
+		(!FROW || row >= FROW) && (!LROW || row <= LROW))
+		printf "\n"
+	if (inhdr)
+		inhdr = 0
+	col=0
+	inrow=0
+	next
+}
+
+# <td> or <th>
+/<[Tt][DdHh]>/ {
+	if (incol)
+	{
+		# fix for missing </td>
+		end_td();
+	}
+	if (!intbl || table < FTBL || table > LTBL)
+		next
+	if (!HDRS && $0 ~ /<[Tt][Hh]>/)
+	{
+		inhdr=1
+		next
+	}
+
+	incol=1;
+	val="";
+	++col
+	if (col > FCOL && (!LCOL || col <= LCOL))
+		printf "%s", OFS
+	next
+}
+# </td> or </th>
+/<\/[Tt][DdHh]>/ {
+	end_td();
+	next
+}
+# plain text
+{
+	if (incol)
+		if (val == "")
+			val = $0;
+		else
+			val = val " " $0;
+}
+'

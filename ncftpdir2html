@@ -1,0 +1,156 @@
+#!/bin/bash
+
+#
+#	ncftpdir2html
+#
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+Usage:
+	`basename $PROGNAME` -f login.cfg [options] remote-directory...
+
+	Make an index for a directory on a remote site
+
+Options:
+	-D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+CFG=
+HOST=
+USER=
+PASS=
+XFLAG=0
+TITLE=
+while getopts "t:xD:f:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	t)	TITLE="$OPTARG";;
+	f)	eval CFG="$OPTARG";;
+	x)	XFLAG=1;;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+[ "$CFG" != "" ] || error "Must specify -f option"
+
+#
+#	Main Program
+#
+
+DIR="$1"
+shift
+HOST=`grep host $CFG | tail -1 | awk '{print $2}'`
+USER=`grep user $CFG | tail -1 | awk '{print $2}'`
+PASS=`grep pass $CFG | tail -1 | awk '{print $2}'`
+[ "$HOST" != "" ] || error "No 'host' line in $CFG"
+[ "$USER" != "" ] || error "No 'user' line in $CFG"
+[ "$PASS" != "" ] || error "No 'pass' line in $CFG"
+
+#
+#	N.B. change this to use expect so we have some error handling
+#
+
+do_ls() {
+	ftp -n -u <<-EOF
+		open $HOST
+		user $USER $PASS
+		cd $DIR
+		mls * -
+		quit
+	EOF
+}
+
+do_ncftpls() {
+	ncftpls -u $USER -p $PASS -l ftp://$HOST/$DIR/
+}
+
+cat <<-EOF
+	<html>
+	<head>
+	<title>$TITLE</title>
+	</head>
+	<body>
+	<h2>$TITLE</h2>
+	<table>
+	<tr>
+	<th align=left>Filename</th>
+	<th align=left>Size</th>
+	<th align=left>Date</th>
+	</tr>
+EOF
+
+do_ncftpls |
+while read mode links owner group size mon day yrtime file extra
+do
+	if [ "$file" = index.html ]; then
+		continue
+	fi
+	if [ "$file" = . ]; then
+		continue
+	fi
+	echo "<tr>"
+	echo "<td align=left><a href=$file>$file</a></td>"
+	echo "<td align=right>$size</td>"
+	echo "<td align=left>$mon $day $yrtime</td>"
+	echo "</tr>"
+done
+
+cat <<-EOF
+	</table>
+EOF
+
+if [ -f README ]; then
+	cat <<-EOF
+	    <hr>
+	    <pre>
+	EOF
+	cat README
+	cat <<-EOF
+	    </pre>
+	EOF
+fi
+
+if [ $XFLAG = 1 ]; then
+	cat <<-EOF
+	<hr>
+	<a target="_top" href="http://w.extreme-dm.com/?login=tradereg">
+	<img name=im src="http://w1.extreme-dm.com/i.gif" height=38
+	border=0 width=41 alt=""></a><script language="javascript"><!--
+	an=navigator.appName;d=document;function
+	pr(){d.write("<img src=\"http://w0.extreme-dm.com",
+	"/0.gif?tag=tradereg&j=y&srw="+srw+"&srb="+srb+"&",
+	"rs="+r+"&l="+escape(d.referrer)+"\" height=1 ",
+	"width=1>");}srb="na";srw="na";//-->
+	</script><script language="javascript1.2"><!--
+	s=screen;srw=s.width;an!="Netscape"?
+	srb=s.colorDepth:srb=s.pixelDepth;//-->
+	</script><script language="javascript"><!--
+	r=41;d.images?r=d.im.width:z=0;pr();//-->
+	</script><noscript><img height=1 width=1 alt="" 
+	src="http://w0.extreme-dm.com/0.gif?tag=tradereg&j=n"></noscript>
+	EOF
+fi
+
+cat <<-EOF
+	</body>
+	</html>
+EOF

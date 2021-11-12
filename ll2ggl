@@ -1,0 +1,188 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Lat/lon to google maps
+
+SYNOPSIS
+    `basename $PROGNAME` [options] lat lon
+
+DESCRIPTION
+    Lat/lon to google maps.
+
+OPTIONS
+    -z zoom	Zoom factor from 0 (small) to 17 (large)[$ZOOM]
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert lat/lon:
+
+	$ ll2ggl 53.558614 -113.552123
+	tqtrtrrsrtrtttqtqqssrqsrrr
+
+SEE ALSO
+    http://intepid.com/posts/484
+EOF
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+ll2xyz() {
+    awk -v LAT=$1 -v LON=$2 -v ZOOM=$3 '
+    function MercatorToNormal(y)
+    {
+	y = -y * PI / 180	# convert to radians
+	y = sin(y);
+	y = (1+y)/(1-y);
+	y = 0.5 * log(y);
+	y *= 1.0 / (2 * PI) # scale factor from radians to normalized
+	y += 0.5; # and make y range from 0 – 1
+	return y;
+    }
+    BEGIN {
+	PI = 3.14159265359
+	x = (180.0 + LON) / 360.0;
+	y = MercatorToNormal(LAT);
+	quad = "t"; // google addresses start with t
+	lookup = "qrts"; // tl tr bl br
+	for (digits = 0; digits < 25; digits++)
+	{
+	    // make sure we only look at fractional part
+	    x -= floor(x);
+	    y -= floor(y);
+	    quad = quad substr(lookup, (x>=0.5?1:0) + (y>=0.5?2:0) + 1, 1);
+	    // now descend into that square
+	    x *= 2;
+	    y *= 2;
+	}
+	printf "%s\n", quad
+	exit
+
+	# Old code ...
+	tileSize = 256;
+	c = 256;
+	for (d = 25; d >= 0; --d) {
+		pixelsPerLonDegree[d] = c / 360;
+		pixelsPerLonRadian[d] = c / (2*PI);
+		e = c / 2;
+		bitmapOrigo_x[d] = e;
+		bitmapOrigo_y[d] = e;
+		numTiles[d] = c / 256;
+		c *= 2;
+	}
+
+	getTileCoordinate(LAT, LON, ZOOM)
+	str = getKeyholeString(res_x, res_y, ZOOM)
+	printf "http://kh.google.com/kh?n=40&v=13&t=%s\n", str
+    }
+
+    function floor(x,	n) { n = int(x); if (n > x) --n; return (n) }
+    function fmod(x, y) { return (x % y) }
+
+    function Tile(lat, lon, zoomLevel) {
+	fillInConstants();
+	#$this->z = $zoomLevel;
+	#$this->p = $this->getTileCoordinate($latitude, $longitude, $zoomLevel);
+	#$this->co = $this->getLatLong($latitude, $longitude, $zoomLevel);
+    }
+		
+    function getBitmapCoordinate(a, b, c,    e) {
+	res_x = floor(bitmapOrigo_x[c] + b * pixelsPerLonDegree[c]);
+	e = sin(a * PI/180.0);
+	if (e > 0.9999) e = 0.9999;
+	if (e < -0.9999) e = -0.9999;
+
+	res_y = floor(bitmapOrigo_y[c] + 0.5 * log((1 + e) / (1 - e)) \
+		* -1*(pixelsPerLonRadian[c]));
+    }
+
+    function getTileCoordinate(lat, lon, zoom) {
+	getBitmapCoordinate(lat, lon, zoom);
+	res_x = floor(res_x / tileSize);
+	res_y = floor(res_y / tileSize);
+	printf "http://mt.google.com/mt?n=40&v=ap.35&x=%d&y=%d&zoom=%d\n",
+	    res_x, res_y, zoom
+    }
+
+    function getLatLong(a, b, c) {
+	# $d = new p(0, 0);
+	#getBitmapCoordinate(a, b, c);
+	#a = $e->x;
+	#$b = $e->y;
+
+	#$d->x = (a - bitmapOrigo_x[c]) / pixelsPerLonDegree[c];
+	#$e = (b - bitmapOrigo_y[c]) / (-1*pixelsPerLonRadian[c]);
+	#$d->y = (2 * atan(exp($e)) - $this->PI / 2) / (PI/180.0);
+	#return $d;
+    }
+
+    function getKeyholeString(myX, myY, z,	i, s) {
+	for (i = 25; i > z; i--) {
+	    rx = (fmod(myX, 2));
+	    myX = floor(myX / 2);
+	    ry = (fmod(myY, 2));
+	    myY = floor(myY / 2);
+	    s = getKeyholeDirection(rx, ry) s;
+	}
+	return "t" s;
+    }
+
+    function getKeyholeDirection(x, y) {
+	if (x == 1) {
+	    if (y == 1) {
+		return "s";
+	    } else if (y == 0) {
+		return "r";
+	    }
+	} else if (x == 0) {
+	    if (y == 1) {
+		return "t";
+	    } else if (y == 0) {
+		return "q";
+	    }
+	}
+
+	return '';
+    }
+    '
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ZOOM=2
+while getopts "z:D:h?" opt
+do
+	case $opt in
+	z)	ZOOM="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# -lt 2 ]; then
+    usage
+fi
+
+ll2xyz $1 $2 $ZOOM

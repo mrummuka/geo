@@ -1,0 +1,81 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Map the geocheck.org battleship locations
+
+SYNOPSIS
+    `basename $PROGNAME` [options] lat lon less-than greater-than ...
+
+DESCRIPTION
+    Map the geocheck.org battleship locations. Lat/lon is dotted MinDec
+    location. The less-than is within meters or feet (-f) distance.
+    The greater-than is outside meters or feet (-f) distance.
+
+OPTIONS
+    -f		Feet instead of meters
+    -D lvl	Debug level
+
+EXAMPLE
+    Solve http://coord.info/GC5MB36:
+
+	$ geo-battleship S38.10.565 E146.17.895 4000 3000 \\
+	    s38.10.606 e146.15.480 2000 1000 \\
+	    ...
+
+SEE ALSO
+    geo-map(1)
+
+    http://geocheck.org/
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+UNITS=m
+while getopts "fD:h?" opt
+do
+	case $opt in
+	f)	UNITS=ft;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+cmd="geo-map -c "
+while [ $# -ge 4 ]; do
+    n=$1
+    w=$2
+    less=$3
+    great=$4
+    shift 4
+    cmd="$cmd $n $w a circle,red,${less}$UNITS"
+    cmd="$cmd $n $w a circle,blue,${great}$UNITS"
+done
+#echo $cmd
+$cmd

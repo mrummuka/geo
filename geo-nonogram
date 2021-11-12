@@ -1,0 +1,184 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Nonogram solver
+
+SYNOPSIS
+    `basename $PROGNAME` [options] skel.nono ...
+
+DESCRIPTION
+    Nonogram solver using a program by Steven Simpson.
+
+OPTIONS
+	-b		Binary and decimal numbers
+	-p png-file	Convert and image it into a PNG png-file
+	-P pdf-file	Convert and image it into a PDF pdf-file
+	-v		Clear screen and print the grid while it is being
+			solved in case of Warning: puzzle has imbalance
+	-D lvl		Debug level
+
+EXAMPLES
+    Solve GC6EQAP.nono:
+
+	$ geo-nonogram GC6EQAP.nono
+	██    ██  ████████  ████████  ██        
+	██    ██  ██    ██  ██        ██        
+	████████  ████████  ████████  ██████████
+	      ██        ██        ██  ██      ██
+	      ██        ██  ████████  ██████████
+
+	██        ████████  ████████  ████████  
+	██        ██    ██  ██    ██  ██    ██  
+	████████  ████████  ██    ██  ██    ██  
+	██    ██        ██  ██    ██  ██    ██  
+	████████        ██  ████████  ████████  
+
+	████████    ██████  ████████  ████████  
+	██    ██        ██  ██    ██        ██  
+	████████        ██  ██    ██  ████████  
+	      ██        ██  ██    ██  ██        
+	      ██        ██  ████████  ████████  
+
+	████████  ████████  ████████            
+	██    ██  ██        ██    ██    ██  ██  
+	████████  ████████  ████████      ██    
+	██    ██        ██  ██    ██  ██      ██
+	████████  ████████  ████████    ██████  
+
+    Solve GC7R09K.nono:
+
+	$ geo-nonogram -b ~/proj/caches/GC7R09K.nono
+	A       11010011010000000000    865280
+	B       11010100001000000000    868864
+	C       11010111111000000000    884224
+	D       11110000000011111111    983295
+	E       10110000011110000111    722823
+	F       10110111111101001110    753486
+	G       10010011111000011100    605724
+	H       11010000001000110000    852528
+	I       01010000000111110000    328176
+
+FORMAT
+    Format of a ".nono":
+
+	$ cat skel.nono
+	title "skeleton"
+	by "skeletin"
+	width 20
+	height 20
+
+	rows
+	1 2 3
+	1 2
+	etc.
+
+	columns
+	1 1
+	2 1 3
+	etc.
+
+SEE ALSO
+    http://www.comp.lancs.ac.uk/~ss/nonogram/auto
+
+    http://www.research.lancs.ac.uk/portal/en/people/Steven-Simpson/
+
+    https://forge.comp.lancs.ac.uk/svn-repos/nonograms/nonolib/trunk/
+
+    https://forge.comp.lancs.ac.uk/svn-repos/nonograms/nonogram/trunk/
+
+    http://webpbn.com/export.cgi
+
+    pbnsolve-wrapper nono2cross+a nono2jsolver nono2teal
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+PDFFILE=
+PNGFILE=
+VERBOSE=-x
+BINARY=0
+while getopts "bvp:P:D:h?" opt
+do
+	case $opt in
+	b)	BINARY=1;;
+        p)      PNGFILE="$OPTARG";;
+        P)      PDFFILE="$OPTARG";;
+        v)      VERBOSE=-v;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    usage
+fi
+
+doit() {
+    nonogram $VERBOSE < $1 |
+	sed -e 's/^$/***********************************************/' \
+	    -e 's/#/██/g' -e 's/-/  /g'
+}
+
+check_uniprint() {
+    if ! type uniprint >/dev/null 2>&1; then
+        error "No uniprint: Try: yum install yudit OR apt-get install yudit"
+    fi
+}
+
+for i in $*; do
+    if [ $# != 1 ]; then
+	echo "$i:"
+    fi
+    if [ "$PDFFILE" != "" ]; then
+	check_uniprint
+	doit $i \
+	| uniprint -out - -size 8 -hsize 0 \
+		-font /usr/share/fonts/gnu-free/FreeMono.ttf 2>/dev/null \
+	| ps2pdf - $PDFFILE
+	# doit $i | paps | ps2pdf - $PDFFILE
+    elif [ "$PNGFILE" != "" ]; then
+	check_uniprint
+	doit $i \
+	| uniprint -out - -size 8 -hsize 0 \
+		-font /usr/share/fonts/gnu-free/FreeMono.ttf 2>/dev/null \
+	| convert -trim - $PNGFILE
+    elif [ "$BINARY" = 1 ]; then
+	nonogram $VERBOSE < $1 | tr -- '-#' 01 | awk '
+	length != 0 {
+	    if (t>=26) printf "A"
+	    printf "%c	", sprintf("%c", 65 + (t++%26) )
+	    system("echo -n " $1 "\"	\"; echo 2i " $1 "p | dc")
+	}
+	'
+    else
+	doit $i
+    fi
+done

@@ -1,0 +1,87 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Add the Pyramids
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [value] ...
+
+DESCRIPTION
+    Add the Pyramids using stdin or from the command line.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Add the Pyramids in https://coord.info/GC7JYYD :
+
+	$ add-pyramids
+	14 1 65 32 119
+	15 66 97 151 
+	81 163 248 
+	244 411 
+	655 
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+doone(){
+    awk '
+    BEGIN {
+    }
+    {
+	nf = NF
+	for (nf = NF; nf > 1; nf--)
+	{
+	    for (i = 1; i < nf; ++i)
+	    {
+		printf "%d ", $i = $i+$(i+1)
+	    }
+	    printf "\n"
+	}
+    }
+    '
+}
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    doone
+else
+    echo $* | doone
+fi

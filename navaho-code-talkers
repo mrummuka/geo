@@ -1,0 +1,141 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Translate Navaho into English
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [words] ...
+
+DESCRIPTION
+    Translate Navaho into English.  Read from the command line or stdin.
+
+OPTIONS
+    -s		Short version and don't read dashes from DB.
+    -D lvl	Debug level
+
+EXAMPLE
+    From the command line:
+
+	$ navaho-code-talkers A-KHA TSAH GAH A-KHA MOASI KLIZZIE-YAZZIE
+	O       A-KHA   OIL
+	N       TSAH    NEEDLE
+	R       GAH     RABBIT
+	O       A-KHA   OIL
+	C       MOASI   CAT
+	K       KLIZZIE-YAZZIE  KID
+
+    From stdin:
+
+	$ navaho-code-talkers 
+	    ATSAH-BE-YAZ WOZ-CHEIND TAH-CHILL NAHL-KIHD
+	    ATSAH-BE-YAZ BE-NE-TA-TSOSIE DA-AHL-ZHIN TAH-TSOSIE
+	    GHAW-JIH ATSAH-BE-YAZ
+	JANUARY ATSAH-BE-YAZ    SMALL EAGLE
+	FEBRUARY        WOZ-CHEIND      SQUEEKY VOICE
+	MARCH   TAH-CHILL       SMALL PLANT
+	DEGREE  NAHL-KIHD       DEGREE  
+	JANUARY ATSAH-BE-YAZ    SMALL EAGLE
+	JULY    BE-NE-TA-TSOSIE SMALL HARVEST
+	PERIOD  DA-AHL-ZHIN     PERIOD
+	MAY     TAH-TSOSIE      SMALL PLANT
+	SEPTEMBER       GHAW-JIH        HALF
+	JANUARY ATSAH-BE-YAZ    SMALL EAGLE
+
+    Short version:
+
+	$ navaho-code-talkers -s 
+	    CHUO YEHHES DAHNESTSA KLESH AWOH BETKAH BEHBIHKEASCHINIGH BETKAH
+	    YEHHES ACHIN BETKAH ACHIN NEAHSJAH DAHNESTSA DAH LIN BETKAH SEIS
+	    BETKAH MAE TLOCHIN SHIDA DAHNESTSA   
+	FIRST NUMBER IN NORTH IS FOUR
+
+	$ navaho-code-talkers -s < GC6CHA4.txt |
+	    navaho-code-talkers -s | navaho-code-talkers -s
+	FIRST NUMBER IN NORTH IS FOUR
+	THE LAST NUMBER IN WEST IS ZERO
+	...
+
+SEE ALSO
+	http://www.geocaching.com/geocache/GCHGFK_ah-na-sozi
+
+	https://www.geocaching.com/geocache/GC6CHA4_insane-hides-2
+
+	http://www.history.navy.mil/faqs/faq61-4.htm
+
+	https://en.wikipedia.org/wiki/Code_talker
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+SHORT=0
+while getopts "sD:h?" opt
+do
+	case $opt in
+	s)	SHORT=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ -s "$HOME/lib/geo/navaho.dic" ]; then
+    LIBGEO=$HOME/lib/geo
+elif [ -s "/usr/lib/geo/navaho.dic" ]; then
+    LIBGEO=/usr/lib/geo
+else
+    error "Can't find 'navaho.dic'"
+fi
+
+
+doit() {
+    if [ $SHORT = 1 ]; then
+	tr -d '-' < $LIBGEO/navaho.dic > /tmp/navaho-dash.dic
+    fi
+    sed -e 's/ /\n/g' | sed -e '/^$/d' -e 's/[.,]/ /g' | while read a; do
+	if [ $SHORT = 1 ]; then
+	    a=`echo "$a" | tr -d - `
+	    text=`grep -y "	$a	" /tmp/navaho-dash.dic |
+		cut -f 1 | head -1`
+	    if [ "$text" = "SPACE" ]; then text=" "; fi
+	    if [ "$text" = "MINE SWEEPER" ]; then text="-"; fi
+	    echo -n "$text"
+	elif ! grep -y "	$a	" $LIBGEO/navaho.dic; then
+	    echo "$a	???"
+	fi
+    done
+    if [ $SHORT = 1 ]; then
+	echo
+    fi
+}
+
+#
+#	Main Program
+#
+if [ $# != 0 ]; then
+    echo "$*" | doit
+else
+    doit
+fi

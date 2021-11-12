@@ -1,0 +1,86 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert baconian to text
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [baconian]
+
+DESCRIPTION
+    Convert baconian to text.  It can read from stdin or command line
+    arguments. 0/1, a/b, or A/B can be used.
+
+EXAMPLES
+    Convert:
+
+	$ baconian2text -i AABBBAAAAAABBBAABBBABABBA
+	happy
+
+	$ echo 'AABBBAAAAAABBBBABBBBBBAAA' | baconian2text
+	happy
+
+OPTIONS
+    -s		Swap A/B
+    -i		Convert i=j and u=v
+    -D lvl	Debug level
+
+SEE ALSO
+    http://en.wikipedia.org/wiki/Bacon%27s_cipher
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+IJ=0
+ABAB=0101
+while getopts "isD:h?" opt
+do
+	case $opt in
+	i)	IJ=1;;
+	s)	ABAB=1010;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+doit() {
+    if [ $IJ = 0 ]; then
+	sed -e 's/[01]\{5\}/2i & 01100001 + aP/g' -e 's/\//00100000aP/'g | dc
+    else
+	sed -e 's/[01]\{5\}/[1+]sa 2i & d 1000 <a d 10100 <a 01100001 + aP/g' \
+	    -e 's/\//00100000aP/'g | dc
+    fi
+}
+
+if [ $# = 0 ]; then
+    cat
+else
+    echo "$*"
+fi | tr -d '\n' | tr ' ABab' "\t$ABAB" | sed -e 's#\t# / #g' | doit
+echo

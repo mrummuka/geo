@@ -1,0 +1,125 @@
+#!/bin/sh
+
+#
+#	skel.sh:
+#
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Replace Size, Difficulty, Terrain from a PQ file
+
+SYNOPSIS
+    `basename $PROGNAME` [options] pq.ts
+
+DESCRIPTION
+    Replace Size, Difficulty, Terrain in a tabsep file from a Pocket Query.
+    Read it from stdin and write it to stdout.
+
+    This is used for geo-nearest/geo-newest.
+
+OPTIONS
+    -H		Also do hints
+    -D lvl	Debug level
+
+EXAMPLES
+    Replace:
+
+	gpsbabel -i gpx -f ~/Caches/mn.gpx -o tabsep -F ~/Caches/mn.ts
+	geo-nearest -otabsep | geo-sdt ~/Caches/mn.ts > ~/Caches/rick.ts
+
+SEE ALSO
+    update-caches(1)
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+HINTS=0
+#unset OPTIND
+while getopts "HD:h?" opt
+do
+	case $opt in
+	H)	HINTS=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+
+if [ $# == 0 ]; then
+    error "Need to list a tabsep pocket query"
+fi
+
+MAIN=$1
+#MAIN=/home/rick/Caches/mn.ts
+awk -F "	" -v HINTS=$HINTS -v MAIN=$MAIN '
+BEGIN {
+    while (getline <MAIN > 0)
+    {
+	s[$2] = $24
+	d[$2] = $22
+	t[$2] = $23
+	if (HINTS)
+	    h[$2] = $30
+    }
+}
+{
+    for (i = 1; i <= 21; ++i)
+	printf "%s\t", $i
+
+    # Difficulty
+    if (d[$2] == "")
+	printf "%s\t", $22
+    else
+	printf "%s\t", d[$2]
+
+    # Terrain
+    if (t[$2] == "")
+	printf "%s\t", $23
+    else
+	printf "%s\t", t[$2]
+
+    # Size
+    if (s[$2] == "")
+	printf "%s\t", $24
+    else
+	printf "%s\t", s[$2]
+
+    for (i = 25; i <= 29; ++i)
+	printf "%s\t", $i
+
+    # Hint
+    if (h[$2] == "")
+	printf "%s\t", $30
+    else
+	printf "%s\t", h[$2]
+
+    for (i = 31; i <= NF; ++i)
+	printf "%s\t", $i
+    printf "\n"
+}'

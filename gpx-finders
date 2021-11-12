@@ -1,0 +1,133 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Output the finders from a GPX file
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    `basename $PROGNAME` [options]
+
+	Output the finders from a GPX file.
+
+	Options:
+	    -D lvl	Debug level
+
+    `basename $PROGNAME` -H [options]
+
+	Add headers to stdin
+
+	Options:
+	    -D lvl	Debug level
+
+EXAMPLES
+	Finder count:
+
+	    $ gpx-finders $HOME/proj/caches/Backups/mn30.gpx | wc -l
+	    4480
+
+	Finders:
+
+	    $ gpx-finders mn30.gpx | sort -n -t'	' -k2 | gpx-finders -H 
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+HDRS=0
+TOP=0
+PREPOST=cat
+while getopts "tHD:h?" opt
+do
+	case $opt in
+	t)	TOP=1;;
+	H)	HDRS=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $HDRS = 1 ]; then
+    $PREPOST $* | awk -F'	' -vTOP=$TOP '
+    BEGIN {
+    }
+    {
+	if (!first) {
+		printf "%-*s	FOUND	DNF	NOTES\n", length($1), "NAME"
+		first = 1
+	}
+	++num
+	print
+    }
+    END {
+	print ""
+	print "Total Number of caches:             ", num
+    }'
+
+else
+    awk '
+    function de_entity(s) {
+	gsub("&amp;", "\\&", s);
+	gsub("&amp;", "\\&", s);
+	gsub("&lt;", "<", s);
+	gsub("&gt;", ">", s);
+	gsub("&quot;", "\"", s);
+	gsub("&apos;", "'"'"'", s);
+	return s
+    }
+    BEGIN {
+	cmd = "date +%s"
+	cmd | getline now; close(cmd)
+    }
+    /<groundspeak:type>/ {
+	sub(".*<groundspeak:type>", ""); sub("<.*", "")
+	type = de_entity($0)
+    }
+    /<groundspeak:finder/ {
+	sub(".*<groundspeak:finder id[^>]*>", ""); sub("<.*", "")
+	name = de_entity($0)
+	if (type == "Found it")
+		found[name]++;
+	else if (type ~ "Didn.t Find it")
+		dnf[name]++;
+	else
+		note[name]++;
+	names[name]++
+	if (length(name) > len)
+		len = length(name)
+    }
+    END {
+	for (i in names) {
+		printf "%*s	%d	%d	%d\n",
+			-len, i, found[i], dnf[i], note[i]
+	}
+    }
+    ' $* | $PREPOST
+fi

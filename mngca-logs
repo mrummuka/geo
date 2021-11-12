@@ -1,0 +1,160 @@
+#!/bin/bash
+
+PATH="$PATH:$HOME/bin:/usr/local/bin"
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Create a webpage of recent logs
+
+SYNOPSIS
+	`basename $PROGNAME` [options] [gpx-files]
+
+DESCRIPTION
+	Create a webpage of recent logs.
+
+	This is meant to be called from cron every 5 minutes.
+
+OPTIONS
+	-f	Force regeneration of web page
+	-v	View-only, do not post the pages
+	-D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+dbgcmd() {
+	if [ $DEBUG -ge 1 ]; then
+	    echo "$@" >&2
+	fi
+	"$@"
+}
+
+if [ `uname` = 'Darwin' ]; then
+    sed=gsed
+    date=gdate
+    touch=gtouch
+    PATH=$PATH:/usr/local/bin:/opt/local/bin
+    export PATH
+else
+    sed=sed
+    date=date
+    touch=touch
+fi
+
+#
+#       Process the options
+#
+DEBUG=0
+FORCE=0
+VIEW=0
+while getopts "fvD:h?" opt
+do
+	case $opt in
+	f)	FORCE=1;;
+	v)	VIEW=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Post to the website
+#
+post() {
+    if false; then
+	dbgcmd ncftpput -r5 -F -f $SITE -m $SUBDIR $*
+    else
+	host=$(grep host "$SITE" | tail -1 | awk '{print $2}')
+	user=$(grep user "$SITE" | tail -1 | awk '{print $2}')
+	pass=$(grep pass "$SITE" | tail -1 | awk '{print $2}')
+
+	lftp <<-EOF
+	    #set xfer:log 1
+	    #set xfer:log-file /home/rick/xxx
+	    #set xfer:log-file -
+	    #set xfer:log-file /dev/stdout
+	    set sftp:auto-confirm yes
+	    open sftp://$host
+	    user $user $pass
+	    mkdir -f -p $SUBDIR
+	    cd $SUBDIR
+	    mput $*
+	    quit
+	EOF
+    fi
+}
+
+#
+#	Main Program
+#
+TMP=/tmp/mngca-logs
+[ -d "$TMP" ] || mkdir $TMP || error "Can't make directory '$TMP'"
+
+NUMLOGS=10
+if [ $# = 0 ]; then
+    GPXFILES=
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-0.gpx"
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-1.gpx"
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-2.gpx"
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-3.gpx"
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-4.gpx"
+    GPXFILES="$GPXFILES /home/rick/Caches/mn/mn-5.gpx"
+    GPXFILES="/home/rick/Caches/mn/mn-*.gpx"
+else
+    GPXFILES="$*"
+fi
+TS=$TMP/ts
+TS2=$TMP/ts2
+if [ $FORCE = 1 ]; then rm -f $TS; fi
+if [ ! -f $TS ]; then touch -d "12/1/1970" $TS; fi
+
+# Abort if any GPX files are likely changing
+# This is a hack, should use a lock
+touch -d "10 mins ago" $TS2
+for f in $GPXFILES; do
+    if [ $f -nt $TS2 ]; then
+	exit 0
+    fi
+done
+
+# Abort if no files are newer than the last time
+doit=0
+for f in $GPXFILES; do
+    if [ $f -nt $TS ]; then
+	doit=1
+    fi
+done
+if [ $doit = 0 ]; then exit 0; fi
+
+touch $TS
+cd $TMP || error "Can't chdir to $TMP"
+gpx-loghistory -u $HOME/.geo-loggers -H -n$NUMLOGS -f day-%02d.html $GPXFILES
+cp -a day-00.html index.html
+
+# website locations
+SUBDIR=mngca/mylogs
+URL=http://mngca.rkkda.com/$SUBDIR/
+SITE=$HOME/.ncftp-rkkda
+
+if [ "$VIEW" = 0 ]; then
+    post *.html
+fi

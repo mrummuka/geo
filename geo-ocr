@@ -1,0 +1,101 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Do OCR on an image file
+
+SYNOPSIS
+    `basename $PROGNAME` [options] image
+
+DESCRIPTION
+    Do OCR on an image file using tesseract.
+
+OPTIONS
+    -l lang	Language, including:
+		pigpen (pig), pigpen2, dancing-men (men), aurebesh (starwars)
+    -D lvl	Debug level
+
+EXAMPLES
+    Convert dancing men:
+
+	$ geo-ocr -l men xxx.jpg
+	Tesseract Open Source OCR Engine v3.02.02 with Leptonica
+	NORTHFIFTYNINEDEGREESFO
+	RTY SEVENDOTNINEHUNDREDS
+	EVENTYFIVEEASTHSEVENTEEN
+	DEGREESTHIRTYSEVE NDOTEI
+	GHTY FIVEDOTDOT DOTDOTDOT
+
+FILES
+    /usr/share/tesseract/tessdata/*.traineddata
+
+    /usr/local/share/tessdata/*.traineddata
+
+SEE ALSO
+    http://www.rkkda.com/sw/ocr/
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+LANG=eng
+while getopts "l:D:h?" opt
+do
+	case $opt in
+	l)	LANG="$OPTARG"
+		# some aliases for old code
+		case "$LANG" in
+		pigpen)		LANG=pig;;
+		danc*)		LANG=men;;
+		star*)		LANG=aurebesh;;
+		esac
+		;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if ! type tesseract >/dev/null 2>&1; then
+    error "tesseract not found! yum install tesseract leptonica"
+fi
+if ! test -d /usr/include/leptonica; then
+    error "leptonica not found! yum install tesseract leptonica"
+fi
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+if [ "$LANG" = pig ]; then
+    echo "tesseract: ##XX order:"
+    tesseract $1 -l $LANG stdout
+    echo "tesseract: #X#X order:"
+    tesseract $1 -l $LANG stdout | tr 'PHNKQJRSTUVLMO' 'THROUNVJKLMPQS'
+else
+    tesseract $1 -l $LANG stdout
+fi

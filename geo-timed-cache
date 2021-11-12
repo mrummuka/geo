@@ -1,0 +1,155 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Timed cache password fetcher
+
+SYNOPSIS
+    `basename $PROGNAME` [options] dir url
+
+DESCRIPTION
+    Timed cache password fetcher. If 'dir' is a relative path, then add
+    $HOME/proj/caches/geo-timed-cache/ to 'dir'.  The URL will be fetched
+    to 'password.NNNNN.<suffix>', where NNNNN is 00001, 00002, etc. and
+    <suffix> is gif, jpg, png, html, or txt.  Only the passwords which are
+    different are saved.
+
+EXAMPLE
+    In a crontab:
+
+	$ vi ~/.crontab/every5
+	geo-timed-cache Stay-Up-All-Night \\
+	    http://techmanski.net/geocaching/GC5BZFR/image.php
+
+    Standalone:
+
+	$ geo-timed-cache -w 5 GC5PPGE http://gc5ppge.16mb.com
+	Sat Oct 7 15:35:32 CDT 2017:
+	    /home/rick/proj/caches/geo-timed-cache/GC5PPGE/password.00001.html
+	Sat Oct 7 15:40:33 CDT 2017:
+	    /home/rick/proj/caches/geo-timed-cache/GC5PPGE/password.00002.html
+	[control-c to terminate]
+
+OPTIONS
+    -b curl	Use curl as the browser. This is the default.
+    -b lynx	Use lynx as the browser
+    -w time	Wait time in floating point minutes before doing a 'snapshot'.
+		Default is 0 for using in a crontab. If it is greater than 0,
+		the program will never exit - use control-c to terminate it.
+		Note: this option should be used outside of a crontab entry!
+    -D lvl	Debug level
+
+SEE ALSO
+    crontab (1)
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+WAIT=0
+BROWSER=curl
+DEBUG=0
+while getopts "b:w:D:h?" opt
+do
+	case $opt in
+	b)	case "$OPTARG" in
+		curl)	BROWSER=curl;;
+		lynx)	BROWSER=lynx;;
+		*)	error "Browser is not curl or lynx!";;
+		esac
+		;;
+	w)	WAIT="$OPTARG"
+		WAIT=`echo "$WAIT 60*p" | dc`
+		;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# != 2 ]; then
+    usage
+fi
+
+DIR="$1"
+URL="$2"
+case $DIR in
+/*)	;;
+*)	DIR=$HOME/proj/caches/geo-timed-cache/$DIR;;
+esac
+
+case $URL in
+http://*)	;;
+https://*)	;;
+*)		error "URL doesn't begin with http://";;
+esac
+
+[ -d $DIR ] || mkdir -p $DIR
+cd $DIR
+
+do_one() {
+    verbose=$1
+    case "$BROWSER" in
+    curl)
+	curl -s $URL |
+	    tee /tmp/geo-timed-cache-xxx |
+	    sed -e '/The last guess was made/d' > .p
+	;;
+    lynx)
+	lynx --dump $URL |
+	    tee /tmp/geo-timed-cache-xxx |
+	    sed -e '/The last guess was made/d' > .p
+	;;
+    esac
+
+    if ! cmp -s .op .p; then
+	i=` ls $DIR | tail -1 | sed -e 's/[a-z.]*0*//' -e 's/\..*//' `
+	((i++))
+	case `file .p` in
+	*JPG*|*JPEG*)	suffix=jpg;;
+	*GIF*)		suffix=gif;;
+	*PNG*)		suffix=png;;
+	*HTML*)		suffix=html;;
+	*ASCII*)	suffix=txt;;
+	*)		suffix=txt;;
+	esac
+	pw=`printf "password.%05d.%s" $i $suffix`
+	cp .p $DIR/$pw
+	mv .p .op
+	if [ "$verbose" = 1 ]; then
+	    echo `date`": $DIR/$pw"
+	fi
+    fi
+}
+
+if [ "$WAIT" = 0 ]; then
+    do_one 0
+else
+    while true; do
+	do_one 1
+	sleep $WAIT
+    done
+fi

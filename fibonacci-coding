@@ -1,0 +1,179 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Decode/encode a fibonacci coding to/from a number
+
+SYNOPSIS
+    `basename $PROGNAME` [options] string ...
+
+DESCRIPTION
+    In mathematics and computing, Fibonacci coding is a universal code which
+    encodes positive integers into binary code words. It is one example of
+    representations of integers based on Fibonacci numbers. Each code word
+    ends with \"11\" and contains no other instances of \"11\" before the end.
+
+OPTIONS
+    -e          Encode decimal to fibonacci coding
+    -v          Verbose
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert http://coord.info/GC34BVW:
+
+        $ fibonacci-coding \\
+            10101001001001001001000100010001110000100100010101010010100010100011
+        4128162 11202427
+
+	$ fibonacci-coding -e 4128162 11202427
+	10101001001001001001000100010001110000100100010101010010100010100011
+
+SEE ALSO
+    https://en.wikipedia.org/wiki/Fibonacci_coding
+
+    http://wiki.tcl.tk/12324
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ENCODE=0
+VERBOSE=0
+while getopts "evD:h?" opt
+do
+	case $opt in
+	e)	ENCODE=1;;
+	v)	VERBOSE=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+encode() {
+    awk -v str=$1 '
+    function fibo(n,	result)
+    {
+	if (fibon > n)
+	    return fiboList[n]
+	result = fibo(n-2) + fibo(n-1)
+	fiboList[n] = result
+	fibon = n
+	return result
+    }
+    function fiboEncodeNum(n,		f, k, res)
+    {
+	if (n < 1)
+	{
+	    print "fiboEncode works on positive numbers"
+	    return
+	}
+	res = "1"
+	f = 1
+	for (k = 1; f <= n; )
+	    f = fibo(++k)
+	while (--k)
+	{
+	    f = fibo(k)
+	    if (f <= n)
+	    {
+		res = "1" res
+		n -= f
+	    }
+	    else
+		res = "0" res
+	}
+	print res
+    }
+    BEGIN {
+	fiboList[0] = 1; fibon=1
+	fiboEncodeNum(str)
+    }
+    '
+}
+
+decode(){
+    awk -v str=$1 '
+    function fibo(n,	result)
+    {
+	if (fibon > n)
+	    return fiboList[n]
+	result = fibo(n-2) + fibo(n-1)
+	fiboList[n] = result
+	fibon = n
+	return result
+    }
+    function fiboDecodeNum(str,		i, n, t, k, coeffs)
+    {
+	n = split(str, coeffs, "")
+	t = 0
+	k = 0
+	for (i = 1; i <= n; ++i)
+	{
+	    #print coeffs[i]
+	    ++k
+	    if (coeffs[i])
+	    {
+		t += fibo(k)
+	    }
+	}
+	printf "%s", t
+    }
+    BEGIN {
+	fiboList[0] = 1; fibon=1
+	#print fibo(str)
+	#print fibo(1), fibo(2), fibo(3), fibo(4)
+	#print fibo(str)
+	gsub("0+$", "", str)
+	gsub("11", "1 ", str)
+	n = split(str, s, " ")
+	for (i = 1; i <= n; ++i)
+	{
+	    if (i > 1) printf " "
+	    fiboDecodeNum(s[i])
+	}
+	printf "\n"
+    }
+    '
+}
+for i in $*; do
+    case $ENCODE in
+    0) decode $i;;
+    1) encode $i;;
+    esac
+done
+
+exit
+puts "10100100011010001110100000011: [fiboDecodeString 10100100011010001110100000011]"
+puts "01001001100001011001000100000011: [fiboDecodeString 01001001100001011001000100000011]"
+puts "{44 29 634}: [fiboEncodeList {44 29 634}]"
+puts "{106 15 93}: [fiboEncodeList {106 15 93}]"
+puts "10000110010010000010100001010010001100000000010010100000001000101011: [fiboDecodeString 10000110010010000010100001010010001100000000010010100000001000101011]"

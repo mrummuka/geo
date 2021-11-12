@@ -1,0 +1,222 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert to/from negadecimal, negabinary, ...
+
+SYNOPSIS
+    `basename $PROGNAME` [options] num ...
+
+DESCRIPTION
+    Convert to/from negadecimal, negabinary, negaternary... all negative
+    bases from 2 to 10.
+
+OPTIONS
+	-2,-3,..,-9	negabinary, negaternary, ...
+	-d		To/From in decimal
+	-n		From negadecimal
+	-D lvl		Debug level
+
+EXAMPLE
+    To negadecimal:
+
+	$ negadecimal 864
+	944
+
+    From negadecimal:
+
+	$ negadecimal -n 944 5948692 8769481
+	864 4132512 7351321 
+
+    From base -4 to decimal:
+
+	$ negadecimal -4 -n -d 12113103010 1301302133022
+	584508 4136506 
+
+    Otherway:
+
+	$ negadecimal -4 -d 584508 4136506 
+	12113103010 1301302133022 
+
+SEE ALSO
+    http://math2.org/math/general/numnotation.htm
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+FROM=0
+BASE=10
+TOBASE=default
+while getopts "1:23456789dnD:h?" opt
+do
+	case $opt in
+	1)	BASE=16;; # todo
+	2)	BASE=2;;
+	3)	BASE=3;;
+	4)	BASE=4;;
+	5)	BASE=5;;
+	6)	BASE=6;;
+	7)	BASE=7;;
+	8)	BASE=8;;
+	9)	BASE=9;;
+	d)	TOBASE=10;;
+	n)	FROM=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+base2decimal()
+{
+    inbase=$1
+    val=$2
+    awk -v inbase=$inbase -v val=$val '
+    BEGIN {
+	r = 0
+	sign = 1
+	if (substr(val, 1, 1) == "-")
+	{
+	    val = substr(val, 2)
+	    sign = -1
+	}
+	k = length(val)
+	if (inbase <= 36)
+	{
+	    for (i = 1; i <= k; i++)
+	    {
+		r *= inbase
+		c = tolower( substr(val, i, 1) )
+		cc = index("0123456789abcdefghijklmnopqrstuvwxyz", c) - 1
+		r = r + int(cc)
+		# old: r = r + int(substr(val, i, 1))
+	    }
+	    print sign*r
+	}
+    }
+    '
+}
+decimal2base()
+{
+    outbase=$1
+    val=$2
+    awk -v outbase=$outbase -v val=$val '
+    BEGIN {
+	if (outbase <= 10)
+	{
+	    r=""
+	    while (val)
+	    {
+		r = val % outbase "" r
+		val = int(val/outbase)
+	    }
+	    printf "%s ", r
+	}
+    }
+    '
+}
+
+# decimal2base 2 10
+# base2decimal 2 $1
+# base2decimal 3 $1
+# exit
+
+to_negadecimal()
+{
+    awk -v BASE=$BASE -v DEBUG=$DEBUG '
+    function ceil(x) { return (x==int(x)) ? x : (x<0) ? int(x)-1 : int(x) }
+    {
+	dec = int($1)
+	if (DEBUG) print dec
+	digits = ""
+	if (!dec)
+	    digits = "0"
+	else
+	    while (dec != 0)
+	    {
+		if (DEBUG) print dec
+		if (dec < 0 )
+		    rem = dec%BASE
+		else
+		    rem = -(BASE-dec%BASE)%BASE
+		# if (rem == -BASE) rem = 0
+		dec = ceil(dec/-BASE)
+		if (DEBUG) print "B4", dec, rem
+		if (rem < 0)
+		{
+		    ++dec
+		    rem = int(rem + BASE)
+		}
+		if (DEBUG) print "AF", dec, rem
+		digits = rem "" digits
+	    }
+	printf "%s ", digits
+    }
+    '
+}
+
+from_negadecimal()
+{
+    awk -v BASE=$BASE '
+    # pow -- the value of x to the exponent y
+    function pow (x, y){ return x ^ y } 
+    {
+	n = $1
+	for (x = length(n)-1; x >= 0; --x)
+	{
+	    y = substr(n, length(n)-x, 1)
+	    # print x, y
+	    digits = digits + y * pow(-BASE, x)
+	}
+	printf "%s ", digits
+    }
+    '
+}
+
+if [ $# = 0 ]; then
+    usage
+fi
+for i in $*; do
+    if [ $FROM = 1 ]; then
+	# echo $i | from_negadecimal
+	# base2decimal $BASE $i | from_negadecimal
+	if [ "$TOBASE" = 10 ]; then
+	    echo $i | from_negadecimal
+	else
+	    decimal2base $BASE $(echo $i | from_negadecimal)
+	fi
+    else
+	if [ "$TOBASE" = 10 ]; then
+	    echo $i | to_negadecimal
+	else
+	    base2decimal $BASE $i | to_negadecimal
+	fi
+    fi
+done
+echo

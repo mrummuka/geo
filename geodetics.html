@@ -1,0 +1,1012 @@
+<HTML>
+<HEAD>
+<TITLE>Gazza's Geodetics Calculator</TITLE>
+<meta name="MSSmartTagsPreventParsing" content="TRUE"> 
+<LINK REL="stylesheet" TYPE="text/css" HREF="mainstyle.css">
+<SCRIPT LANGUAGE=JAVASCRIPT TYPE="TEXT/JAVASCRIPT" SRC="utilityfunctions.js"></SCRIPT> 
+<style type="text/css">
+<!--
+body, TD {font-family: helvetica; font-size: 10pt}
+.red {color: red}
+.blue {color: blue}
+-->
+</style>
+<SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript">
+<!--
+ // ===================================================================
+ // Gazza's Geodetics Calculator
+ // Author: Gary Nicholson <gary@nicholson.co.nz>
+ // WWW: http://www.gazza.co.nz/
+ //
+ // NOTICE: Because of the complexity of this calculator I don't want 
+ // multiple versions floating round the net.  Therefore you may NOT
+ // use this calculator on your site, please link to it instead.
+ // If you must have it on your site please contact me first for
+ // permission.
+ //
+ // Feel free to use any of my utility functions on your own calculators. 
+ // ===================================================================
+
+   var pi = Math.PI;
+   var secsize = 4;       // round second display to
+   var distsize = 3;      // round distance display to
+   var bearsize = 8;      // round bearing display to
+
+function about(){
+
+var w = window.open("", "aboutwin", 'toolbar=0,location=1,directories=0,status=1,menubar=0,scrollbars=1,resizable=1,width=700,height=280');
+var d = w.document;
+d.open();
+d.writeln("<HTML>\n<HEAD><TITLE>About Gazza's Geodetic Calculator</TITLE>");
+d.writeln("</HEAD><BODY>");
+d.writeln("<CENTER><H3>Help For Gazza's Geodetic Calculator</H3></CENTER>");
+d.writeln("<P>Bearings, Latitude and Longitude values may be entered as Degrees, Minutes, Seconds (DMS) or ");
+d.writeln("as Decimal Degrees (DegDec) or as Degrees and Decimal Minutes (MinDec).");
+d.writeln("For DegDec, enter the value in the degrees field and");
+d.writeln("have zeroes or blanks in the minutes and seconds fields.");
+d.writeln("For MinDec, enter the value in the degrees and minutes fields and");
+d.writeln("have zero or blanks in the seconds field.");
+d.writeln("Calculated results are output according to the Output Format setting.");
+d.writeln("<P>To project lat/lon, enter Point 1 and the Ellipsoidal Distance and True Bearing, then click Calc Point 2.");
+d.writeln("<P>To compute the distance/bearing between two points, enter Point 1 and Point 2, then click Calc Point R&B.");
+d.writeln("<P>For lat/lon to UTM conversions, first enter the correct UTM zone.");
+d.writeln("<P>For lat/lon to UTM conversions, first enter the correct UTM zone.");
+d.writeln("Entering a longitude in the Longitude of Central Meridian field will");
+d.writeln("compute the correct UTM Zone No. field for you.");
+d.writeln("<P>If your browser has cookies enabled, the calculator will remember your spheroid ");
+d.writeln("and projection parameters for the next time.");
+d.writeln("<CENTER><H3>About Gazza's Geodetic Calculator</H3></CENTER>");
+d.writeln("<P>This calculator was developed to give anyone a convenient method");
+d.writeln("of performing basic geodetic calculations without having to worry about loading and paying for software.");
+d.writeln("<P>By writing this in HTML and JavaScript anyone with access to the <I>Web</I> can use it");
+d.writeln("no matter what platform or browser they have. &nbsp;It also means that the source code is ");
+d.writeln("available to anyone who is interested in seeing what I did or who may need to debug it.");
+d.writeln("<P>This is only for Transverse Mercator projections at the moment, though if enough people want me ");
+d.writeln("to develop a page for other projections I'll think about it.");
+d.writeln("<P>Those of you using other projections should still be able to get some use out of it the way it stands.");
+d.writeln("<P>Formulae used in this calculator were obtained from the Geodetic Datum of Australia Technical Manual"); 
+d.writeln("produced by the <a TARGET='window.open()' href='http://www.anzlic.org.au/icsm'>Intergovernmental Committee on Surveying & Mapping.</a><BR>");
+d.writeln("A copy of this should make it easier to follow what I've done.");
+d.writeln("<P>Please don't copy this calculator onto another web site, instead include a link to this page ");
+d.writeln("<I>http://www.gazza.co.nz/geodetics.html.</I> This will ensure the latest version is used. Feel free "); 
+d.writeln("to use any of the javascript functions in your own calculators, just include my name and address in your code ");
+d.writeln("and drop me an e:mail showing me what you have done. ");
+d.writeln("<P>This calculator is supplied as is, although I'm confident that it works correctly the user accepts sole ");
+d.writeln("responsibility for the use and results of this calculator. ");
+d.writeln("<P>I've developed these calculators for my own use and am happy to share them free of charge, but if you find ");
+d.writeln("them useful and use them commercially how about sponsoring me so I can develop more? Drop me a e:mail if ");
+d.writeln("you want to give me some money .");
+d.writeln("<P>If you find any errors or have any suggestions to make about this calculator");
+d.writeln("<a href='mailto:gary@nicholson.co.nz'> ");
+d.writeln("send me an email</a>.<P>");
+d.writeln("<P><H6>Gary Nicholson, 28 October 2000.</H6><P>");
+d.writeln("<P><H6>Modified by Rick Richardson, 18 March 2004.</H6><P>");
+d.writeln("<FORM><CENTER><INPUT TYPE=button VALUE=' Close About ' onClick='window.close()'></CENTER></FORM>");
+d.writeln("</BODY></HTML>");
+d.close();
+return true;
+}
+function calcRandB(form, in1, in2, in3, in4) {             //calculate plane grid range and bearing
+  // in1 - point 1 coordinates index
+  // in2 - point 2 coordinates index 
+  // in3 - distance index
+  // in4 - bearing index
+  var de = parseFloat(form.east[in2].value) - parseFloat(form.east[in1].value);  //difference in eastings
+  var dn = parseFloat(form.north[in2].value) - parseFloat(form.north[in1].value);  //difference in northings 
+
+  form.distvalue[in3].value = Math.sqrt(de * de + dn * dn);          //compute distance 
+  form.distvalue[in3].value = roundoff(form.distvalue[in3].value,distsize);  //round off distance
+ 
+  var x = Math.atan2(de,dn);    //compute bearing, result in radians
+  if (x < 0) {
+     x += 2 * pi;             //if negative add 2*pi or 360 degrees
+  }
+  ddd2dms(form, in4, rad2deg(x));
+return true;
+}
+
+
+function calcPoint(form, in1, in2, in3, in4) {           //calculate grid coordinates from plane grid range and bearing
+  // in1 - point 1 coordinates index
+  // in2 - point 2 coordinates index 
+  // in3 - distance index
+  // in4 - bearing index
+
+  var x = dms2ddd(form.degreevalue[in4].value, form.minutevalue[in4].value, form.secondvalue[in4].value);  //convert to decimal degrees
+  x = deg2rad(x);             //convert to radians
+  var dn = parseFloat(form.distvalue[in3].value) * Math.cos(x) ;  
+  var de = parseFloat(form.distvalue[in3].value) * Math.sin(x) ;  
+  form.north[in2].value = parseFloat(form.north[in1].value) + dn;
+  form.east[in2].value = parseFloat(form.east[in1].value) + de;
+  form.north[in2].value = roundoff(form.north[in2].value,distsize);
+  form.east[in2].value = roundoff(form.east[in2].value,distsize);
+return true;
+}
+
+
+function deg2rad(x){                //convert decimal degrees to radians
+    
+  x = x * pi / 180;
+  return x;
+}
+
+function rad2deg(x){                //convert radians to decimal degrees
+    
+  x = x * 180 / pi;
+  return x;
+}
+
+function roundoff(x,y){              //round off x to y decimal places
+  x = parseFloat(x);
+  y = parseFloat(y);
+  if (y == 0)
+      x = Math.round(x * Math.pow(10,y));
+  else
+      x = Math.round(x * Math.pow(10,y))/Math.pow(10,y);
+  return x;
+}
+
+function dms2ddd(d,m,s){
+
+  if (isblank(d)) d = '0';
+   else {
+      var y = d.slice(0, 1);
+      d = parseFloat(d);
+   }
+  if (isblank(m)) m = '0';
+   else
+      m = parseFloat(m);
+  if (isblank(s)) s = '0';
+   else
+      s = parseFloat(s); 
+  var x = Math.abs(d) + (Math.abs(m) / 60) + (Math.abs(s) / 3600);  //convert to decimal degrees
+  if ((y == "-") || (d < 0) || (m < 0) || (s < 0)) x = -x;
+  return x;
+
+}
+
+function isblank(s)
+{
+  for(var i = 0; i < s.length; i++) {
+      var c = s.charAt(i);
+      if ((c != ' ') && (c != '\n') && (c != '\t')) return false;
+  }
+  return true;
+}
+
+function geo2grid(form, in1, in2, in3, in4, in5){
+  // in1 - point latitude index
+  // in2 - point longitude index
+  // in3 - point grid coordinates 
+  // in4 - grid convergence index
+  // in5 - point scale factor index
+  
+  var j = form.units.selectedIndex;
+  var units = form.units.options[j].value;
+
+  var latddd = dms2ddd(form.degreevalue[in1].value, form.minutevalue[in1].value, form.secondvalue[in1].value);  // convert latitude of point to decimal degrees then radians
+  var latrad = deg2rad(latddd);
+  var londdd = dms2ddd(form.degreevalue[in2].value, form.minutevalue[in2].value, form.secondvalue[in2].value);  // likewise for longitude
+  var lonrad = deg2rad(londdd);
+
+// calclulate constants required for Redfern's formulae
+  var k = parseFloat(form.k.value);  //scale factor
+  var a = parseFloat(form.a.value);  //semi-major axis
+  var f = 1 / parseFloat(form.invf.value);  //flattening
+  var b = a * (1 - f);    //semi-minor axis
+  var e2 = (a * a - b * b)/(a * a);  //eccentricity squared
+  var e = Math.sqrt(e2);  //eccentricity
+  var ei2 = (a * a - b * b)/(b * b); //second eccentricity squared
+  var ei = Math.sqrt(ei2); //second eccentricity
+  var n = (a - b)/(a + b);
+  var G = a * (1 - n) * (1 - n * n) * (1 + (9 / 4) * n * n + (255 / 64) * Math.pow(n,4)) * (pi / 180);  //Mean length of an arc of one degree of the meridian
+
+  var w = londdd - parseFloat(form.cmlong.value);  //longitude difference from CM
+  w = deg2rad(w);  //convert to radians
+  var t = Math.tan(latrad);  //tan of latitude
+  var rho = a * (1 - e2) / Math.pow(1 - (e2 * Math.sin(latrad) * Math.sin(latrad)),(3/2)); //radius of curvature in plane of meridian
+  var nu = a / Math.sqrt(1 - (e2 * Math.sin(latrad) * Math.sin(latrad))); //radius of curvature in prime vertical
+  var psi = nu / rho; 
+  var coslat = Math.cos(latrad);
+  var sinlat = Math.sin(latrad);
+
+// calculate meridian distance
+  var A0 = 1 - (e2/4) - (3 * e2 * e2 / 64) - (5 * Math.pow(e2, 3) / 256);
+  var A2 = (3 / 8) * (e2 + (e2 * e2 /4) + (15 * Math.pow(e2, 3) /128));
+  var A4 = (15 / 256) * (e2 * e2 + (3 * Math.pow(e2, 3) / 4));
+  var A6 = 35 * Math.pow(e2, 3) / 3072;
+  var m = a * ((A0 * latrad) - (A2 * Math.sin(2 * latrad)) + (A4 * Math.sin(4 * latrad)) - (A6 * Math.sin(6 * latrad)));  
+
+// calculate easting 
+  var eterm1 = (w * w / 6) * coslat * coslat * (psi - t * t);
+  var eterm2 = (Math.pow(w,4) / 120) * Math.pow(coslat,4) * (4 * Math.pow(psi,3) * (1 - 6 * t * t) + psi * psi * (1 + 8 * t * t) - psi * 2 * t * t + Math.pow(t,4));
+  var eterm3 = (Math.pow(w,6) / 5040) * Math.pow(coslat,6) * (61 - 479 * t * t + 179 * Math.pow(t, 4) - Math.pow(t,6));
+  var dE = k * nu * w * coslat * (1 + eterm1 + eterm2 + eterm3); 
+  form.east[in3].value = roundoff(parseFloat(form.falseeast.value) + (dE / units), distsize);
+  
+// calculate northing
+  var nterm1 = (w * w /2) * nu * sinlat * coslat;
+  var nterm2 = (Math.pow(w,4) / 24) * nu * sinlat * Math.pow(coslat, 3) * (4 * psi * psi + psi - t * t);
+  var nterm3 = (Math.pow(w,6) / 720) * nu * sinlat * Math.pow(coslat, 5) * (8 * Math.pow(psi, 4) * (11 - 24 * t * t) - 28 * Math.pow(psi, 3) * (1 - 6 * t * t) + psi * psi * (1 - 32 * t * t) - psi * 2 * t * t + Math.pow(t, 4));
+  var nterm4 = (Math.pow(w,8)/40320) * nu * sinlat * Math.pow(coslat,7) * (1385 - 3111 * t * t + 543 * Math.pow(t, 4) - Math.pow(t, 6));
+  var dN = k * (m + nterm1 + nterm2 + nterm3 + nterm4);
+  form.north[in3].value = roundoff(parseFloat(form.falsenorth.value) + (dN / units), distsize) ;
+
+// calculate grid convergence
+  var gterm1 = -w * sinlat;
+  var gterm2 = -(Math.pow(w,3) / 3) * sinlat * coslat * coslat * (2 * psi * psi - psi);
+  var gterm3 = -(Math.pow(w,5) / 15) * sinlat * Math.pow(coslat, 4) * (Math.pow(psi, 4) * (11 - 24 * t * t) - Math.pow(psi, 3) * ( 11 - 36 * t * t) + 2 * psi * psi * (1 - 7 * t * t) + psi * t * t);
+  var gterm4 = -(Math.pow(w,7) / 315) * sinlat * Math.pow(coslat, 6) * (17 - 26 * t * t + 2 * Math.pow(t, 4));
+  var gridconv = gterm1 + gterm2 + gterm3 + gterm4;
+  
+  ddd2dms(form, in4, rad2deg(gridconv));
+
+// calculate point scale factor
+  var kterm1 = (w * w / 2) * psi * coslat * coslat;
+  var kterm2 = (Math.pow(w, 4) / 24) * Math.pow(coslat, 4) * ( 4 * Math.pow(psi, 3) * (1 - 6 * t * t) + psi * psi * (1 + 24 * t * t) - 4 * psi * t * t);
+  var kterm3 = (Math.pow(w, 6) / 720) * Math.pow(coslat, 6) * (61 - 148 * t * t + 16 * Math.pow(t, 4));
+  var pointk = k * (1 + kterm1 + kterm2 + kterm3);
+  form.pointk[in5].value = roundoff(pointk, bearsize);  
+  
+return true;
+}
+
+function grid2geo(form, in1, in2, in3, in4, in5){
+  // in1 - point latitude index
+  // in2 - point longitude index
+  // in3 - point grid coordinates 
+  // in4 - grid convergence index
+  // in5 - point scale factor index
+
+var j = form.units.selectedIndex;
+var units = form.units.options[j].value;
+
+// calclulate constants required for Redfern's formulae
+  var k = parseFloat(form.k.value);  //scale factor
+  var a = parseFloat(form.a.value);  //semi-major axis
+  var f = 1 / parseFloat(form.invf.value);  //flattening
+  var b = a * (1 - f);    //semi-minor axis
+  var e2 = (a * a - b * b)/(a * a);  //eccentricity squared
+  var e = Math.sqrt(e2);  //eccentricity
+  var ei2 = (a * a - b * b)/(b * b); //second eccentricity squared
+  var ei = Math.sqrt(ei2); //second eccentricity
+  var n = (a - b)/(a + b);
+  var G = a * (1 - n) * (1 - n * n) * (1 + (9 / 4) * n * n + (255 / 64) * Math.pow(n,4)) * (pi / 180);  //Mean length of an arc of one degree of the meridian
+  var north = (parseFloat(form.north[in3].value) - parseFloat(form.falsenorth.value)) * units;  //northing from the equator 
+  var east = (parseFloat(form.east[in3].value) - parseFloat(form.falseeast.value)) * units; //easting from the CM
+  var m = north / k;  //meridian distance
+  var sigma = (m * pi) / (180 * G);
+
+// calculate the foot point latitude and constants for that latitude
+  var footlat = sigma + ((3 * n / 2) - (27 * Math.pow(n, 3) / 32)) * Math.sin(2 * sigma) + ((21 * n * n / 16) - (55 * Math.pow(n, 4) / 32)) * Math.sin(4 * sigma) + (151 * Math.pow(n, 3) / 96) * Math.sin(6 * sigma) + (1097 * Math.pow(n, 4) / 512) * Math.sin(8 * sigma);
+  var rho = a * (1 - e2) / Math.pow(1 - (e2 * Math.sin(footlat) * Math.sin(footlat)),(3/2)); //radius of curvature in plane of meridian
+  var nu = a / Math.sqrt(1 - (e2 * Math.sin(footlat) * Math.sin(footlat))); //radius of curvature in prime vertical
+  var psi = nu / rho; 
+  var t = Math.tan(footlat);  //tan of latitude
+
+// calculate latitude
+  var x = east / (k * nu);
+  var laterm1 = (t / (k * rho )) * ( east * x / 2);
+  var laterm2 = (t / (k * rho )) * ( east * Math.pow(x, 3) / 24) * (-4 * psi * psi + 9 * psi * (1 - t * t) + 12 * t * t );
+  var laterm3 = (t / (k * rho )) * ( east * Math.pow(x, 5) / 720) * (8 * Math.pow(psi, 4) * (11 - 24 * t * t) - 12 * Math.pow(psi, 3) * (21 - 71 * t * t) + 15 * psi * psi * (15 - 98 * t * t + 15 * Math.pow(t, 4)) + 180 * psi * (5 * t * t - 3 * Math.pow(t, 4)) + 360 * Math.pow(t, 4));
+  var laterm4 = (t / (k * rho )) * ( east * Math.pow(x, 7) / 40320) * (1385 + 3633 * t * t + 4095 * Math.pow(t, 4) + 1575 * Math.pow(t, 6));
+  var latrad = footlat - laterm1 + laterm2 - laterm3 + laterm4;
+
+  if (form.format.value == 1)
+      ddd2ddd(form, in1, rad2deg(latrad));
+  else if (form.format.value == 2)
+      ddd2ddmm(form, in1, rad2deg(latrad));
+  else
+      ddd2dms(form, in1, rad2deg(latrad));
+  
+// calculate longitude
+  var seclat = 1 / Math.cos(footlat);
+  var loterm1 = x * seclat;
+  var loterm2 = (Math.pow(x, 3) / 6) * seclat * (psi + 2 * t * t);
+  var loterm3 = (Math.pow(x, 5) / 120) * seclat * (-4 * Math.pow(psi, 3) * (1 - 6 * t * t) + psi * psi * (9 -68 * t * t) + 72 * psi * t * t + 24 * Math.pow(t, 4));
+  var loterm4 = (Math.pow(x, 7) / 5040) * seclat * (61 + 662 * t * t + 1320 * Math.pow(t, 4) + 720 * Math.pow(t, 6));
+  var w = loterm1 - loterm2 + loterm3 - loterm4;
+  var longrad = deg2rad(parseFloat(form.cmlong.value)) + w;
+
+  if (form.format.value == 1)
+      ddd2ddd(form, in2, rad2deg(longrad));
+  else if (form.format.value == 2)
+      ddd2ddmm(form, in2, rad2deg(longrad));
+  else
+      ddd2dms(form, in2, rad2deg(longrad));
+
+// calculate grid convergence
+  var gterm1 = -t * x;
+  var gterm2 = (t * Math.pow(x, 3) / 3) * (-2 * psi * psi + 3 * psi + t * t);
+  var gterm3 = (-t * Math.pow(x, 5) / 15) * (Math.pow(psi, 4) * (11 - 24 * t * t) - 3 * Math.pow(psi, 3) * (8 - 23 * t * t) + 5 * psi * psi * (3 - 14 * t * t) + 30 * psi * t * t + 3 * Math.pow(t, 4));
+  var gterm4 = (t * Math.pow(x, 7) / 315) * (17 +77 * t * t + 105 * Math.pow(t, 4) + 45 * Math.pow(t, 6));
+  var gridconv = gterm1 + gterm2 + gterm3 + gterm4;
+
+  ddd2dms(form, in4, rad2deg(gridconv));
+
+// calculate point scale factor
+  x = east * east / (k * k * rho * nu);
+  var kterm1 = x / 2;
+  var kterm2 = (x * x / 24) * (4 * psi * (1 - 6 * t * t) - 3 * (1 - 16 * t * t) - 24 * t * t / psi);
+  var kterm3 = Math.pow(x, 3) / 720 ;
+  var pointk = k * (1 + kterm1 + kterm2 + kterm3);
+  form.pointk[in5].value = roundoff(pointk, bearsize);  
+      
+return true;
+}
+
+function calcRandBgeo(form, in1, in2, in3, in4, in5, in6){
+  // in1 - point 1 latitude index
+  // in2 - point 1 longitude index
+  // in3 - point 2 latitude index 
+  // in4 - point 2 longitude index
+  // in5 - distance index
+  // in6 - bearing index
+
+var j = form.units.selectedIndex;
+var units = form.units.options[j].value;
+
+// calclulate constants 
+  var k = parseFloat(form.k.value);  //scale factor
+  var a = parseFloat(form.a.value);  //semi-major axis
+  var f = 1 / parseFloat(form.invf.value);  //flattening
+  var b = a * (1 - f);    //semi-minor axis
+  
+  var latddd1 = dms2ddd(form.degreevalue[in1].value, form.minutevalue[in1].value, form.secondvalue[in1].value);  // convert latitude of point to decimal degrees then radians
+  var latrad1 = deg2rad(latddd1);
+  var londdd1 = dms2ddd(form.degreevalue[in2].value, form.minutevalue[in2].value, form.secondvalue[in2].value);  // likewise for longitude
+  var lonrad1 = deg2rad(londdd1);
+  var latddd2 = dms2ddd(form.degreevalue[in3].value, form.minutevalue[in3].value, form.secondvalue[in3].value);  // convert latitude of point to decimal degrees then radians
+  var latrad2 = deg2rad(latddd2);
+  var londdd2 = dms2ddd(form.degreevalue[in4].value, form.minutevalue[in4].value, form.secondvalue[in4].value);  // likewise for longitude
+  var lonrad2 = deg2rad(londdd2);
+
+  var w = lonrad2 - lonrad1; 
+
+  if (Math.abs(w) > 1.5707963268) {
+     alert("Sorry this calculator isn't designed for such large distances.\nTry my Great Circle Calculator instead."); 
+  }
+  var tanB1 = Math.tan(latrad1) * (1 - f);
+  var tanB2 = Math.tan(latrad2) * (1 - f);
+  var B1 = Math.atan(tanB1);
+  var B2 = Math.atan(tanB2);
+
+  var term1 = Math.sin(w) * Math.cos(B2);
+  var term2 = Math.sin(B2) * Math.cos(B1) - Math.sin(B1) * Math.cos(B2) * Math.cos(w);
+  var phi = Math.asin(Math.sqrt(term1 * term1 + term2 * term2));
+  var c = (Math.cos(B1) * Math.cos(B2) * Math.sin(w)) / Math.sin(phi);
+  var m = 1 - c * c;
+  
+  term1 = phi * (1 + f + f * f)
+  term2 = Math.sin(B1) * Math.sin(B2) * ((f + f * f) * Math.sin(phi) - ((f * f / 2) * phi * phi / Math.sin(phi)));
+  var term3 = m * (-1 * (phi * (f + f * f) / 2) - ((f + f * f) / 2) * Math.sin(phi) * Math.cos(phi) + ((f * f / 2) * phi * phi) / Math.tan(phi));
+  var term4 = Math.sin(B1) * Math.sin(B2) * Math.sin(B1) * Math.sin(B2) * (-1 * (f * f /2) * Math.sin(phi) * Math.cos(phi));
+  var term5 = m * m * ((f * f / 16 ) * phi + (f * f / 16) * Math.sin(phi) * Math.cos(phi) - (f * f / 2) * phi * phi / Math.tan(phi) - (f * f / 8) * Math.sin(phi) * Math.pow(Math.cos(phi), 3));
+  var term6 = Math.sin(B1) * Math.sin(B2) * m * ((f * f / 2) * phi * phi / Math.sin(phi) + (f * f / 2) * Math.sin(phi) * Math.cos(phi) * Math.cos(phi));
+  var s = b * (term1 + term2 + term3 + term4 + term5 + term6);
+  form.distvalue[in5].value = roundoff((s / units), distsize);  //round off distance
+ 
+  term1 = (f + f * f) * phi;
+  term2 = Math.sin(B1) * Math.sin(B2) * ( -1 * (f * f / 2) * Math.sin(phi) - f * f * phi * phi / Math.sin(phi));
+  term3 = m * (-1 * (5 * f * f / 4) * phi + (f * f /4) * Math.sin(phi) * Math.cos(phi) + f * f * phi * phi / Math.tan(phi));
+  lamda = c * (term1 + term2 + term3) + w;
+  
+  var de = Math.sin(B2) * Math.cos(B1) - Math.cos(lamda) * Math.sin(B1) * Math.cos(B2);
+  var dn = Math.sin(lamda) * Math.cos(B2); 
+  var x = Math.atan2(dn,de);    //compute bearing, result in radians
+  if (x < 0) {
+     x += 2 * pi;             //if negative add 2*pi or 360 degrees
+  }
+
+if (w == 0) {
+   if (latddd2 < latddd1) 
+       x =  pi;
+   else if (latddd2 > latddd1) 
+       x = 0;
+   else if (latddd2 == latddd1) {
+       x = 0;
+       form.distvalue[in5].value = roundoff(0, distsize);  //round off distance
+   }
+}
+  ddd2dms(form, in6, rad2deg(x));
+    
+return true;
+}
+
+
+function calcPointgeo(form, in1, in2, in3, in4, in5, in6){
+  // in1 - point 1 latitude index
+  // in2 - point 1 longitude index
+  // in3 - point 2 latitude index 
+  // in4 - point 2 longitude index
+  // in5 - distance index
+  // in6 - bearing index
+
+var j = form.units.selectedIndex;
+var units = form.units.options[j].value;
+
+// calclulate constants 
+  var k = parseFloat(form.k.value);  //scale factor
+  var a = parseFloat(form.a.value);  //semi-major axis
+  var f = 1 / parseFloat(form.invf.value);  //flattening
+  var b = a * (1 - f);    //semi-minor axis
+  var e2 = (a * a - b * b)/(a * a);  //eccentricity squared
+  var e = Math.sqrt(e2);  //eccentricity
+  var ei2 = (a * a - b * b)/(b * b); //second eccentricity squared
+  var ei = Math.sqrt(ei2); //second eccentricity
+  
+  var latddd1 = dms2ddd(form.degreevalue[in1].value, form.minutevalue[in1].value, form.secondvalue[in1].value);  // convert latitude of point to decimal degrees then radians
+  var latrad1 = deg2rad(latddd1);
+  var londdd1 = dms2ddd(form.degreevalue[in2].value, form.minutevalue[in2].value, form.secondvalue[in2].value);  // likewise for longitude
+  var lonrad1 = deg2rad(londdd1);
+  var x12 = dms2ddd(form.degreevalue[in6].value, form.minutevalue[in6].value, form.secondvalue[in6].value);  //convert to decimal degrees
+  x12 = deg2rad(x12);             //convert to radians
+  var s = (parseFloat(form.distvalue[in5].value) * units);  
+  
+  if (Math.abs(s) > 10019148.059) {
+     alert("Sorry this calculator isn't designed for such large distances.\nTry my Great Circle Calculator instead."); 
+  }
+  var tanB1 = Math.tan(latrad1) * (1 - f);
+  var B1 = Math.atan(tanB1);
+  var cosB0 = Math.cos(B1) * Math.sin(x12);
+  var B0 = Math.acos(cosB0);
+  var g = Math.cos(B1) * Math.cos(x12);
+  var m = (1 + (ei2 / 2) * Math.sin(B1) * Math.sin(B1)) * (1 - Math.cos(B0) * Math.cos(B0));
+  var phis = s / b;
+  var a1 = (1 + (ei2 / 2) * Math.sin(B1) * Math.sin(B1)) * (Math.sin(B1) * Math.sin(B1) * Math.cos(phis) + g * Math.sin(B1) * Math.sin(phis));
+
+  var term1 = a1 * (-1 * (ei2 / 2) * Math.sin(phis));
+  var term2 = m * (-1 * (ei2 / 4) * phis + (ei2 / 4) * Math.sin(phis) * Math.cos(phis));
+  var term3 = a1 * a1 * ((5 * ei2 * ei2 / 8) * Math.sin(phis) * Math.cos(phis));
+  var term4 = m * m * (( 11 * ei2 * ei2 / 64) * phis - (13 * ei2 * ei2 / 64) * Math.sin(phis) * Math.cos(phis) - (ei2 * ei2 / 8) * phis * Math.cos(phis) * Math.cos(phis) + (5 * ei2 * ei2 / 32) * Math.sin(phis) * Math.pow(Math.cos(phis), 3));
+  var term5 = a1 * m * ((3 * ei2 * ei2 / 8) * Math.sin(phis) + (ei2 * ei2 /4) * phis * Math.cos(phis) - (5 * ei2 * ei2 / 8) * Math.sin(phis) * Math.cos(phis) * Math.cos(phis));
+  var phi0 = phis + term1 + term2 + term3 + term4 + term5;
+  
+  var cotlamda = (Math.cos(B1) * Math.cos(phi0) - Math.sin(B1) * Math.sin(phi0) * Math.cos(x12)) / (Math.sin(phi0) * Math.sin(x12));
+  var lamda = Math.atan(1 / cotlamda);
+  
+  term1 = -1 * f * phis;
+  term2 = a1 * ((3 * f * f / 2) * Math.sin(phis));
+  term3 = m * ((3 * f * f / 4) * phis - (3 * f * f / 4) * Math.sin(phis) * Math.cos(phis));
+  var w = (term1 + term2 + term3) * Math.cos(B0) + lamda;
+
+  var lonrad2 = lonrad1 + w;
+  if (form.format.value == 1)
+      ddd2ddd(form, in4, rad2deg(lonrad2));
+  else if (form.format.value == 2)
+      ddd2ddmm(form, in4, rad2deg(lonrad2));
+  else
+      ddd2dms(form, in4, rad2deg(lonrad2));
+
+  var sinB2 = Math.sin(B1) * Math.cos(phi0) + g * Math.sin(phi0);
+  var cosB2 = Math.sqrt((Math.cos(B0) * Math.cos(B0)) + Math.pow((g * Math.cos(phi0) - Math.sin(B1) * Math.sin(phi0)), 2));
+  var tanB2 = sinB2 / cosB2;
+  var tanlat2 = tanB2 / (1 - f);
+  var latrad2 = Math.atan(tanlat2);
+
+  if (form.format.value == 1)
+      ddd2ddd(form, in3, rad2deg(latrad2));
+  else if (form.format.value == 2)
+      ddd2ddmm(form, in3, rad2deg(latrad2));
+  else
+      ddd2dms(form, in3, rad2deg(latrad2));
+
+return true;
+}
+
+function ddd2ddd(form, ind, bearing){
+  var y = Math.abs(parseFloat(bearing));
+  form.degreevalue[ind].value = y;
+  form.degreevalue[ind].value = roundoff(form.degreevalue[ind].value,7); 
+  form.minutevalue[ind].value = "";
+  form.secondvalue[ind].value = "";
+  if (bearing < 0) {
+     if (form.degreevalue[ind].value != 0) 
+        form.degreevalue[ind].value = -form.degreevalue[ind].value;
+     else if (form.minutevalue[ind].value != 0)
+        form.minutevalue[ind].value = -form.minutevalue[ind].value;
+     else
+        form.secondvalue[ind].value = -form.secondvalue[ind].value;
+  }  
+  form.degreevalue[ind].value += "\260";                                        // add degrees symbol now we have finished with value
+return true;
+}
+
+function ddd2ddmm(form, ind, bearing){
+  var y = Math.abs(parseFloat(bearing));
+  form.degreevalue[ind].value = parseInt(y + 1) - 1;
+  var x = y - form.degreevalue[ind].value;     
+  form.minutevalue[ind].value = x * 60;
+  form.minutevalue[ind].value = roundoff(form.minutevalue[ind].value,3); 
+  form.secondvalue[ind].value = "";
+  if (form.minutevalue[ind].value == 60) {
+    form.minutevalue[ind].value = "00";
+    form.degreevalue[ind].value = form.degreevalue[ind].value * 1 + 1;
+  }
+  if (bearing < 0) {
+     if (form.degreevalue[ind].value != 0) 
+        form.degreevalue[ind].value = -form.degreevalue[ind].value;
+     else if (form.minutevalue[ind].value != 0)
+        form.minutevalue[ind].value = -form.minutevalue[ind].value;
+     else
+        form.secondvalue[ind].value = -form.secondvalue[ind].value;
+  }  
+  form.degreevalue[ind].value += "\260";                                        // add degrees symbol now we have finished with value
+  form.minutevalue[ind].value += "\'";                                        //add minute symbol now we have finished with value
+return true;
+}
+
+function ddd2dms(form, ind, bearing){
+  var y = Math.abs(parseFloat(bearing));
+  form.degreevalue[ind].value = parseInt(y + 1) - 1;
+  var x = y - form.degreevalue[ind].value;     
+  form.minutevalue[ind].value = parseInt(x * 60 + 1) - 1;
+  form.secondvalue[ind].value = ((x * 60) - form.minutevalue[ind].value) * 60;
+  form.secondvalue[ind].value = roundoff(form.secondvalue[ind].value,secsize); 
+  if (form.secondvalue[ind].value == 60) {
+      form.secondvalue[ind].value = "0";
+      form.minutevalue[ind].value = form.minutevalue[ind].value * 1 + 1;
+      if (form.minutevalue[ind].value == 60) {
+        form.minutevalue[ind].value = "0";
+        form.degreevalue[ind].value = form.degreevalue[ind].value * 1 + 1;
+      }
+  }
+  if (bearing < 0) {
+     if (form.degreevalue[ind].value != 0) 
+        form.degreevalue[ind].value = -form.degreevalue[ind].value;
+     else if (form.minutevalue[ind].value != 0)
+        form.minutevalue[ind].value = -form.minutevalue[ind].value;
+     else
+        form.secondvalue[ind].value = -form.secondvalue[ind].value;
+  }  
+  form.degreevalue[ind].value += "\260";                                        // add degrees symbol now we have finished with value
+  form.minutevalue[ind].value += "\'";                                        //add minute symbol now we have finished with value
+  form.secondvalue[ind].value += '\"';               //round off seconds and add symbol
+return true;
+}
+
+function confirmSphChange(form){             //to only allow changes to spheroid parameters if in user defined mode
+
+var i = form.spheroid.selectedIndex;
+if (i != 22) {
+  form.a.blur();
+  form.invf.blur();
+  alert("\n To override Spheroid Parameters\n use the User Defined option.");
+}
+return true;
+}
+ 
+  
+
+function updateSpheroid(form){
+
+var i = form.spheroid.selectedIndex;
+switch(i) {
+  case 0:
+    form.a.value = 6378388.000;
+    form.invf.value = 297.000;
+    break;
+  case 1:
+    form.a.value = 6378388.000;
+    form.invf.value = 297.000;
+    break;
+  case 2:
+    form.a.value = 6378206.400;
+    form.invf.value = 294.978698200;
+    break;
+  case 3:
+    form.a.value = 6378249.145;
+    form.invf.value = 293.465;
+    break;
+  case 4:
+    form.a.value = 6377276.345;
+    form.invf.value = 300.8017;
+    break;
+  case 5:
+    form.a.value = 6377397.155;
+    form.invf.value = 299.1528128;
+    break;
+  case 6:
+    form.a.value = 6378166;
+    form.invf.value = 298.3;
+    break;
+  case 7:
+    form.a.value = 6378135;
+    form.invf.value = 298.26;
+    break;
+  case 8:
+    form.a.value = 6378293.645;
+    form.invf.value = 294.26;
+    break;
+  case 9:
+    form.a.value = 6377304.063;
+    form.invf.value = 300.8017;
+    break;
+  case 10:
+    form.a.value = 6377563.396;
+    form.invf.value = 299.3249646;
+    break;
+  case 11:
+    form.a.value = 6378200;
+    form.invf.value = 298.3;
+    break;
+  case 12:
+    form.a.value = 6378245;
+    form.invf.value = 298.3;
+    break;
+  case 13:
+    form.a.value = 6378270;
+    form.invf.value = 297;
+    break;
+  case 14:
+    form.a.value = 6378295;
+    form.invf.value = 296;
+    break;
+  case 15:
+    form.a.value = 6378150;
+    form.invf.value = 298.3;
+    break;
+  case 16:
+    form.a.value = 6378160;
+    form.invf.value = 298.25;
+    break;
+  case 17:
+    form.a.value = 6377298.561;
+    form.invf.value = 300.8017;
+    break;
+  case 18:
+    form.a.value = 6378145;
+    form.invf.value = 298.25;
+    break;
+  case 19:
+    form.a.value = 6378137;
+    form.invf.value = 298.257223563;
+    break;
+  case 20:
+    form.a.value = 6378160;
+    form.invf.value = 298.247;
+    break;
+  case 21:
+    form.a.value = 6378160;
+    form.invf.value = 298.25;
+    break;
+  case 22:
+    form.a.value = "";
+    form.invf.value = "";
+    break;
+}
+return true;
+}
+
+function confirmProjChange(form){             //to only allow changes to projection parameters if in user defined mode
+
+var i = form.projection.selectedIndex;
+if (i != 2) {
+  form.falsenorth.blur();
+  form.falseeast.blur();
+  form.k.blur();
+  alert("\n To override Projection Parameters\n use the User Defined option.");
+}
+return true;
+}
+
+function updateProjection(form, x){
+
+var i = form.projection.selectedIndex;
+var j = form.units.selectedIndex;
+var units = form.units.options[j].value;
+switch(i) {
+  case 0:
+    form.falsenorth.value = 0;
+    form.falseeast.value = 500000 / units;
+    form.k.value = 0.9996;
+    break;
+  case 1:
+    form.falsenorth.value = 10000000 / units;
+    form.falseeast.value = 500000 / units;
+    form.k.value = 0.9996;
+    break;
+  case 2:
+    if (x == 1) {                  // only reset if called from projection selection not grid units
+      form.falsenorth.value = '';
+      form.falseeast.value = '';
+      form.k.value = '';
+    }
+    break;
+}
+}
+
+function updateFormat(form, x){
+}
+
+function swapgeos(form){
+  var x = form.degreevalue[0].value;
+  form.degreevalue[0].value = form.degreevalue[5].value;
+  form.degreevalue[5].value = x;
+  x = form.degreevalue[1].value;
+  form.degreevalue[1].value = form.degreevalue[6].value;
+  form.degreevalue[6].value = x;
+
+  x = form.minutevalue[0].value;
+  form.minutevalue[0].value = form.minutevalue[5].value;
+  form.minutevalue[5].value = x;
+  x = form.minutevalue[1].value;
+  form.minutevalue[1].value = form.minutevalue[6].value;
+  form.minutevalue[6].value = x;
+  
+  x = form.secondvalue[0].value;
+  form.secondvalue[0].value = form.secondvalue[5].value;
+  form.secondvalue[5].value = x;
+  x = form.secondvalue[1].value;
+  form.secondvalue[1].value = form.secondvalue[6].value;
+  form.secondvalue[6].value = x;
+return true;
+}
+
+function swapgrid(form){
+  var x = form.north[0].value;
+  form.north[0].value = form.north[1].value;
+  form.north[1].value = x;
+  x = form.east[0].value;
+  form.east[0].value = form.east[1].value;
+  form.east[1].value = x;
+return true;
+}
+
+function updateCM(form){
+  var zone = parseFloat(form.zone.value);
+  if ((zone < 1) || (zone > 60) || isblank(form.zone.value)) {
+     form.zone.value = "";
+     alert("\n  Please enter a UTM Zone number\n between 1 and 60.");
+     form.zone.focus();
+  }
+  else { 
+     form.cmlong.value =  zone * 6 - 183 + "\260";
+  }
+}
+
+function updateZone(form){
+  var cmlong = parseFloat(form.cmlong.value);
+  if ((cmlong < -180) || (cmlong > 180) || isblank(form.cmlong.value)) {
+     form.cmlong.value = "";
+     alert("\n Please enter a Longitude of Central Meridian between +/- 180\260");
+     form.cmlong.focus();
+  }
+  else {
+     form.zone.value = roundoff(((cmlong + 183) / 6), 0);
+  }
+}
+
+
+function getCookie(form){
+  var allcookies = document.cookie;
+// look for start of cookie named "geode"
+
+var pos = allcookies.indexOf("geode=");
+
+  if (pos != -1) {
+     var start = pos + 6;  // start of cookie value
+     var end = allcookies.indexOf(";", start);  //End of cookie value
+     if (end == -1) end = allcookies.length;
+     var saved = allcookies.substring(start, end); //Extract the value
+     var options = saved.split(":");
+     form.spheroid.selectedIndex = options[0]; 
+     form.zone.value = options[1];
+     form.cmlong.value = options[2];
+     form.projection.selectedIndex = options[3];
+     form.a.value = options[4];
+     form.invf.value = options[5]; 
+     form.falsenorth.value = options[6];  
+     form.falseeast.value = options[7];  
+     form.k.value = options[8];
+     form.units.selectedIndex = options[9];
+     form.format.selectedIndex = options[10];
+  }
+  else
+  {
+     form.spheroid.selectedIndex = 19; 	// default to WGS84
+     form.format.selectedIndex = 1;	// default to MinDec
+  }
+return true;
+}
+
+function saveCookie(form){
+   var when = new Date();
+   when.setMonth( when.getMonth() + 12 );    // cookie valid for one year
+   var str = form.spheroid.selectedIndex + ":";
+   str += form.zone.value + ":";
+   str += form.cmlong.value + ":";
+   str += form.projection.selectedIndex + ":"; 
+   str += form.a.value + ":";  
+   str += form.invf.value + ":"; 
+   str += form.falsenorth.value + ":";  
+   str += form.falseeast.value + ":";  
+   str += form.k.value + ":";
+   str += form.units.selectedIndex + ":";
+   str += form.format.selectedIndex + ":";
+   document.cookie = "geode=" + str + ";expires=" + when.toGMTString();
+return true;
+}
+//-->
+</SCRIPT>
+
+</HEAD>
+<BODY onLoad='getCookie(document.geodetics)' onUnload='saveCookie(document.geodetics)'>
+<p>
+<FORM NAME="geodetics" onReset="return confirm('Erase ALL data and start over?')">
+<TABLE bgcolor="#aaaaaa" width="100%">
+<TR><TD>
+<TABLE bgcolor="#cccccc" border=1 width="100%">
+<TR><TD>
+<table border=0 cellpadding=0 width="100%">
+<TR>
+<TD COLSPAN=9 bgcolor="#000080" align="center">
+<H2 style="color:white">
+<A href="http://www.wherearewe.co.nz" style="color:white">Gazza's Geodetics Calculator</A>
+<BR>For Transverse Mercator Projections</H2>
+</TR>
+</TABLE>
+<HR>
+<TABLE>
+<TR>
+<TD>Spheroid:</TD><TD COLSPAN=2><SELECT NAME='spheroid' onChange='updateSpheroid(this.form)'>
+<OPTION>International 1924</OPTION>
+<OPTION>Hayford 1909</OPTION>
+<OPTION>Clarke 1866</OPTION>
+<OPTION>Clarke 1880</OPTION>
+<OPTION>Everest 1830</OPTION>
+<OPTION>Bessel 1841</OPTION>
+<OPTION>Fischer 1960</OPTION>
+<OPTION>A.P.L. Satellite</OPTION>
+<OPTION>Clarke 1858</OPTION>
+<OPTION>Malayan</OPTION>
+<OPTION>Airy 1830</OPTION>
+<OPTION>Helmert 1906</OPTION>
+<OPTION>Krassovsky 1938</OPTION>
+<OPTION>Hough 1956</OPTION>
+<OPTION>War Office</OPTION>
+<OPTION>Fischer 1968</OPTION>
+<OPTION>Aus. National 1967</OPTION>
+<OPTION>Modified Everest</OPTION>
+<OPTION>NWL 8D</OPTION>
+<OPTION>WGS 1984</OPTION>
+<OPTION>GRS (1967)</OPTION>
+<OPTION>Sth American 1969</OPTION>
+<OPTION>User Defined</OPTION>
+</SELECT>
+</TD>
+<TD>Projection:</TD>
+<TD><SELECT NAME='projection' onChange='updateProjection(this.form, 1)'>
+<OPTION>UTM North</OPTION>
+<OPTION>UTM South</OPTION>
+<OPTION>User Defined TM</OPTION>
+</SELECT>
+</TD>
+<TD></TD><TD>False Northing:</TD>
+<TD COLSPAN=2><INPUT TYPE=text SIZE=12 VALUE="0" NAME='falsenorth' onfocus='confirmProjChange(this.form)'></TD>
+</TR>
+<TR>
+<TD>Semi-Major Axis:</TD><TD><INPUT TYPE=text SIZE=12 VALUE="6378137.0" NAME='a' onfocus='confirmSphChange(this.form)'></TD>
+<TD></TD><TD>UTM Zone No.:</TD><TD><INPUT TYPE=text SIZE=4 VALUE='1' NAME='zone' onChange='updateCM(this.form)'></TD>
+<TD></TD><TD>False Easting:</TD>
+<TD COLSPAN=2><INPUT TYPE=text SIZE=12 VALUE="500000" NAME='falseeast' onfocus='confirmProjChange(this.form)'></TD>
+</TR>
+<TR>
+<TD>Inverse Flattening:</TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="298.257223563" NAME='invf' onfocus='confirmSphChange(this.form)'></TD>
+<TD></TD><TD >Longitude of Central Meridian:</TD>
+<TD><INPUT TYPE=text SIZE=5 VALUE="-177&deg;" NAME='cmlong' onChange='updateZone(this.form)'></TD>
+<TD></TD><TD>Central Scale Factor:</TD>
+<TD COLSPAN=2><INPUT TYPE=text SIZE=8 VALUE="0.9996" NAME='k' onfocus='confirmProjChange(this.form)'></TD>
+</TR>
+<TR>
+<TD></TD><TD></TD><TD></TD>
+<TD>Output Format:</TD>
+<TD><SELECT NAME='format' onChange='updateFormat(this.form, 2)'>
+    <OPTION VALUE=3>DMS</OPTION>
+    <OPTION VALUE=2>MinDec</OPTION>
+    <OPTION VALUE=1>DegDec</OPTION>
+    </SELECT>
+</TD><TD></TD>
+<TD>Grid Units:</TD>
+<TD COLSPAN=2><SELECT NAME='units' onChange='updateProjection(this.form, 2)'>
+<OPTION VALUE=1>Metres</OPTION>
+<OPTION VALUE=0.304800609604316>US Survey Feet</OPTION>
+</SELECT>
+</TD>
+</TR>
+<TR><TD COLSPAN=9><HR></TD></TR>
+<TR>
+<TD>Latitude <BR>( - south): </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><INPUT TYPE=button VALUE=' Lat/Lon to N/E ' onClick='geo2grid(this.form, 0, 1, 0, 2, 0)'></TD>
+<TD>Northing:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='north'></TD>
+</TR>
+<TR><TD>Longitude <BR>( - west): </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><INPUT TYPE=button VALUE=' N/E to Lat/Lon ' onClick='grid2geo(this.form, 0, 1, 0, 2, 0)'></TD>
+<TD>Easting:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='east'></TD>
+</TR>
+<TR>
+<TD>Grid Convergence:</TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><H3><CENTER>Point 1</CENTER></H3></TD>
+<TD>Point Scale Factor:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='pointk'></TD>
+</TR>
+<TR><TD COLSPAN=9><HR></TD></TR>
+<TR>
+<TD>Ellipsoidal Distance:</TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0" NAME='distvalue' ></TD>
+<TD></TD><TD></TD><TD></TD><TD>Grid Distance:</TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0" NAME='distvalue' ></TD>
+</TR>
+<TR>
+<TR><TD>True Bearing: </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD></TD>
+<TD>Grid Bearing: </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+</TR>
+<TR><TD></TD>
+<TD><INPUT TYPE=button VALUE='Calc R & B' onClick='calcRandBgeo(this.form, 0, 1, 5, 6, 0, 3)'></TD>
+<TD COLSPAN=2><INPUT TYPE=button VALUE='Calc Point 2' onClick='calcPointgeo(this.form, 0, 1, 5, 6, 0, 3)'></TD>
+<TD></TD><TD></TD>
+<TD><INPUT TYPE=button VALUE='Calc R & B' onClick='calcRandB(this.form, 0, 1, 1, 4)'></TD>
+<TD COLSPAN=2><INPUT TYPE=button VALUE='Calc Point 2' onClick='calcPoint(this.form, 0, 1, 1, 4)'></TD>
+</TR>
+<TR><TD COLSPAN=9><HR></TD></TR>
+<TR>
+<TD>Latitude <BR>( - south): </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><INPUT TYPE=button VALUE=' Lat/Lon to N/E ' onClick='geo2grid(this.form, 5, 6, 1, 7, 1)'></TD>
+<TD>Northing:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='north'></TD>
+</TR>
+<TR><TD>Longitude <BR>( - west): </TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><INPUT TYPE=button VALUE=' N/E to Lat/Lon ' onClick='grid2geo(this.form, 5, 6, 1, 7, 1)'></TD>
+<TD>Easting:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='east'></TD>
+</TR>
+<TR>
+<TD>Grid Convergence:</TD>
+<TD><INPUT TYPE=text SIZE=12 VALUE="0&deg;" NAME='degreevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE="0'" NAME='minutevalue'></TD>
+<TD><INPUT TYPE=text SIZE=6 VALUE='0"' NAME='secondvalue'></TD>
+<TD><H3><CENTER>Point 2</CENTER></H3></TD>
+<TD>Point Scale Factor:</TD><TD><INPUT TYPE=text SIZE=12 VALUE='0' NAME='pointk'></TD>
+</TR>
+<TR><TD></TD>
+<TD><INPUT TYPE=button VALUE="Swap 1 & 2" onClick='swapgeos(form)'></TD>
+<TD></TD>
+<TD></TD>
+<TD><INPUT TYPE=reset VALUE="Reset Fields"></TD>
+<TD></TD>
+<TD><INPUT TYPE=button VALUE="Swap 1 & 2" onClick='swapgrid(form)'></TD>
+<TD></TD>
+<TD><INPUT TYPE=button VALUE="Help" onclick='about()'></TD>
+</TR>
+</TABLE>
+</TD></TR></TABLE>
+</TD></TR></TABLE>
+</FORM>
+<P>
+<script type="text/javascript">
+<!--
+writeFooter();
+//-->
+</script>
+</BODY>
+</HTML>

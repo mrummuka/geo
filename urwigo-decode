@@ -1,0 +1,306 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - urwigo and earwigo decoder
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file] ...
+
+DESCRIPTION
+    urwigo and earwigo decoder.  Can use stdin or command line file(s).
+
+OPTIONS
+    -v		Verbose. Print the undecoding string as well
+    -D lvl	Debug level
+
+EXAMPLES
+    Decode a wherigo https://coord.info/GC415J3 :
+
+	$ wherigo2lua how_the_grinch_sto.gwc >xxx
+	$ urwigo-decode <xxx | tail -1
+	The Grinch steals your Stable Key! Then he dissappears off toward the Northeast.
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+VERBOSE=0
+while getopts "vD:h?" opt
+do
+	case $opt in
+	v)	VERBOSE=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+awk=awk
+if [ `uname` = "Darwin" ]; then
+    awk=gawk
+    if ! which -s $awk; then
+	error "'$awk' not found.  Install it from http://rudix.org/packages/gawk.html"
+    fi
+fi
+
+cat $* | $awk -v "DEBUG=$DEBUG" -v "VERBOSE=$VERBOSE" '
+BEGIN    { _ord_init() }
+
+function _ord_init(    low, high, i, t)
+{
+    low = sprintf("%c", 7) # BEL is ascii 7
+    if (low == "\a") {    # regular ascii
+        low = 0
+        high = 127
+    } else if (sprintf("%c", 128 + 7) == "\a") {
+        # ascii, mark parity
+        low = 128
+        high = 255
+    } else {        # ebcdic(!)
+        low = 0
+        high = 255
+    }
+
+    for (i = low; i <= high; i++) {
+        t = sprintf("%c", i)
+        _ord_[t] = i
+    }
+}
+function ord(str,    c)
+{
+    # only first character is of interest
+    c = substr(str, 1, 1)
+    return _ord_[c]
+}
+function chr(c)
+{
+    # force c to be numeric by adding 0
+    return sprintf("%c", c + 0)
+}
+function interp(str,	i, s, c, res, n)
+{
+    for (i = 1; i <= length(str); ++i)
+    {
+	c = substr(str, i, 1)
+	if (s == 0)
+	{
+	    if (c == "\\")
+	    {
+		s = 1
+		continue
+	    }
+	    res = res c
+	}
+	else if (s == 1)
+	{
+	    n = 0
+	    if (c >= "0" && c <= "9")
+	    {
+		n = n * 10 + c
+		s = 2
+		continue
+	    }
+	    if (c == "a") res = res "\a"
+	    else if (c == "b") res = res "\b"
+	    else if (c == "f") res = res "\f"
+	    else if (c == "n") res = res "\n"
+	    else if (c == "r") res = res "\r"
+	    else if (c == "t") res = res "\t"
+	    else if (c == "v") res = res "\v"
+	    else if (c == "\\") res = res "\\"
+	    else if (c == "\"") res = res "\""
+	    else print "burp" c
+	    s = 0
+	}
+	else if (s == 2)
+	{
+	    if (c >= "0" && c <= "9")
+	    {
+		n = n * 10 + c
+		s = 3
+		continue
+	    }
+	    print "burp!"
+	}
+	else if (s == 3)
+	{
+	    if (c >= "0" && c <= "9")
+	    {
+		n = n * 10 + c
+		s = 0
+		res = res chr(n)
+	    }
+	}
+    }
+    return res
+}
+# Earwigo ...
+function WWB_deobf(str, variant,
+	    rot_palette, result, plen, d, x, c, p)
+{
+    ++earwigo
+    rot_palette = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.-~"
+    plen = length(rot_palette)
+    result = ""
+    gsub("&nbsp;", " ", str)
+    gsub("&lt;", chr(4), str)
+    gsub("&gt;", chr(5), str)
+    gsub("&amp;", chr(6), str)
+    gsub(/\\001/, chr(1), str)
+    gsub(/\\002/, chr(2), str)
+    gsub(/\\003/, chr(3), str)
+    gsub(/\\n/, chr(12), str)
+    #print str
+    for (i = 1; i <= length(str); ++i)
+    {
+	c = substr(str, i, 1)
+	p = index(rot_palette, c)
+	if (p)
+	{
+	    if (variant == 0)
+	    {
+		jump = d % 8 + 9
+		p -= jump
+		if (p < 1)
+		    p += plen
+	    }
+	    else
+	    {
+		jump = (i-1) % 8 + 9
+		p += jump
+		if (plen < p)
+		    p -= plen
+	    }
+	    c = substr(rot_palette, p, 1)
+	}
+	else
+	{
+	    if (c == chr(1)) c = "B"
+	    if (c == chr(2)) c = "R"
+	    if (c == chr(3)) c = ""
+	    if (c == chr(12)) c = "\n"
+	}
+	++d
+	result = result c
+    }
+    gsub(chr(4), "&lt;", result)
+    gsub(chr(5), "&gt;", result)
+    gsub(chr(6), "&amp;", result)
+    return result
+}
+/^ *function .*(str)/ {
+    if (++nfunc != 1) next
+    sfunc = $0
+    sub(" *function ", "", sfunc)
+    sub("[(].*", "", sfunc)
+    print sfunc
+}
+$0 ~ sfunc && nfunc {
+    str = $0
+    nfld = split(str, fld, sfunc)
+    for (n = 2; n <= nfld; ++n)
+    {
+	str = fld[n]
+	sub(".*" sfunc "[(]\"", "", str)
+	sub("[^(]*[(]\"", "", str)
+	sub("\").*", "", str)
+	if (VERBOSE) print "str" n ": ", str
+	decode = interp(str)
+	res = ""
+	for (i = 1; i <= length(decode); ++i)
+	{
+	    b = substr(decode, i, 1)
+	    b = ord(b)
+	    res = res substr(dtable, b, 1)
+	}
+	print res
+    }
+}
+$0 ~ "WWB_deobf" {
+    str = $0
+    sub(".*WWB_deobf.\"", "", str)
+    sub("\").*", "", str)
+    if (VERBOSE) print "str: ", str
+    decode = WWB_deobf(str, 0)
+    print decode
+}
+$0 ~ "wwb_deobf" {
+    str = $0
+    sub(".*wwb_deobf.\"", "", str)
+    sub("\").*", "", str)
+    if (VERBOSE) print "str: ", str
+    decode = WWB_deobf(str, 0)
+    print decode
+}
+$0 ~ "gsub_wig" {
+    str = $0
+    sub(".*gsub_wig.\"", "", str)
+    sub("\").*", "", str)
+    if (VERBOSE) print "str: ", str
+    decode = WWB_deobf(str, 1)
+    print decode
+}
+$0 ~ "wwb_obfuscate" {
+    str = $0
+    sub(".*wwb_obfuscate.\"", "", str)
+    sub("\").*", "", str)
+    if (VERBOSE) print "str: ", str
+    decode = WWB_deobf(str, 1)
+    print decode
+}
+$0 ~ "string.char[(]" {
+    text = $0
+    n = 0
+    while (length(text) > 0)
+    {
+	rc = match(text, "string.char[(][0-9]*[)]")
+	if (rc == 0) break
+	s = substr(text, RSTART+12, RLENGTH-13)
+	if (chr(s) >= " " && chr(s) <= "~")
+	{
+	    if (!n) printf "char.string decoded: "
+	    n = 1
+	    printf "%c", chr(s)
+	}
+	text = substr(text, RSTART+RLENGTH)
+    }
+    if (n) printf "\n"
+}
+/  local dtable = / {
+    dtable = $0
+    sub(".* = \"", "", dtable)
+    sub("\"$", "", dtable)
+    dtable = interp(dtable)
+    #print length(dtable), dtable
+}
+END {
+    if (nfunc == 0 && earwigo == 0)
+	print "Not a Urwigo or a Earwigo!"
+}
+'

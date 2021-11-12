@@ -1,0 +1,238 @@
+#!/usr/bin/perl -w
+ 
+=head1 NAME 
+
+    gpx-loghistory - print all logs from a GPX file in reverse cron order
+
+=head1 SYNOPSIS
+
+    gpx-loghistory [options] file.gpx ...
+
+=head1 USAGE
+
+    -f fspec	Output into page/day format.  %d format specifier needed.
+    -F		Output Found logs only.
+    -H		Output HTML page(s).
+    -n num	Stop after "num" logs. [no limit]
+		With -f, stop after "num" days
+    -u file	Save finders to file
+    -D level	Debug level [0]
+
+=cut
+
+# use strict;
+
+#
+# process command line arguments
+#
+use Getopt::Std;
+use Sys::Hostname;
+my %Opt;
+
+$Opt{D} = 0;
+$Opt{H} = 0;
+$Opt{n} = 0;
+$Opt{F} = 0;
+$Opt{f} = "";
+$Opt{u} = "";
+getopts("Ff:u:Hn:D:h\?", \%Opt);
+ 
+if ($Opt{h} || $Opt{'?'}) {
+    exec "pod2text $0 >&2";
+}
+
+###############################################################################
+#
+# Main script
+#
+###############################################################################
+use XML::Twig;
+use Text::Wrap;
+$Text::Wrap::columns = 72;
+ 
+$numlog = 9999999;
+
+open(NAMES, ">> $Opt{u}") if ($Opt{u} ne "");
+ 
+sub wpt
+{
+    my ($twig, $cache) = @_;
+    my $cid = $cache->first_child('groundspeak:cache')->att('id');
+    my $gcid = $cache->first_child_text('name');
+    my $desc = $cache->first_child_text('desc');
+    my $tm = $cache->first_child_text('time');
+
+    my $gcache = $cache->last_child('groundspeak:cache');
+    my $name = $gcache->first_child_text('groundspeak:name');
+	$name =~ s/&apos;/\'/g;
+	$name =~ s/&quot;/\'/g;
+	$name =~ s/&amp;/\&/g;
+    my $owner = $gcache->last_child_text('groundspeak:placed_by');
+    my $logs = $gcache->first_child('groundspeak:logs');
+    my $log = $logs->first_child('groundspeak:log');
+    while ($log) {
+	my $finder = $log->last_child_text('groundspeak:finder');
+	my $type = $log->last_child_text('groundspeak:type');
+	my $date = substr($log->last_child_text('groundspeak:date'), 0, 10);
+	my $text = $log->last_child_text('groundspeak:text');
+
+	$text =~ s/&apos;/\'/g;
+	$text =~ s/&quot;/\'/g;
+	$text =~ s/&amp;/\&/g;
+	$type =~ s/&apos;/\'/g;
+
+	$finder{$date.$numlog} = $finder;
+	$type{$date.$numlog} = $type;
+	$text{$date.$numlog} = $text;
+	$name{$date.$numlog} = $name;
+	$date{$date.$numlog} = $date;
+	$cid{$date.$numlog} = $cid;
+
+	if ($Opt{u} ne "") {
+	    $text = $finder;
+	    $text =~ s/&apos;/\'/g;
+	    $text =~ s/&quot;/\'/g;
+	    $text =~ s/&amp;/\&/g;
+	    $type =~ s/&apos;/\'/g;
+	    print NAMES "$text\n";
+	}
+
+	--$numlog;
+	$log = $log->next_sibling;
+    }
+    $twig->purge;
+}
+ 
+ 
+while (my $gpxfile = shift(@ARGV)) {
+        open GPXFILE, "$gpxfile" || die "can't open gpx file '$gpxfile'\n";
+        print STDERR "Handling $gpxfile\n" if $Opt{D};
+	close GPXFILE;
+ 
+        my $parser = new XML::Twig(
+		    TwigHandlers => {'wpt' => \&wpt}, input_filter => 'safe');
+ 
+        $parser->parsefile($gpxfile);
+ 
+        close $gpxfile;
+}
+
+my $sep =
+"---------------------------------------------------------------------------\n";
+
+my $pagenum = 0;
+
+sub links
+{
+    if ($Opt{f} ne "") {
+	if ($pagenum < $Opt{n}) {
+	    print OUT "<a href=" . sprintf($Opt{f}, $pagenum)
+		. ">[PrevDay]</a>\n";
+	}
+	if ($pagenum > 1) {
+	    print OUT "<a href=" . sprintf($Opt{f}, $pagenum-2)
+		. ">[NextDay]</a>\n";
+	}
+    }
+}
+
+sub spage
+{
+    if ($Opt{f} ne "") {
+	open(OUT, ">" . sprintf($Opt{f}, $pagenum++))
+    } else {
+	open(OUT, ">&STDOUT");
+    }
+    if ($Opt{H}) {
+	print OUT "<html>\n";
+	print OUT "<head>\n";
+	print OUT "<title>Recent Geocache Logs</title>\n";
+	print OUT "</head>\n";
+	print OUT "<body>\n";
+	my ($sec,$min,$hour,$mday,$mon,$year, $wday,$yday,$isdst)
+	    = localtime time;
+	my $now = localtime time;
+	my $hostname = hostname();
+
+	print OUT "<b>$date</b>\n";
+	&links();
+	print OUT "<font size=-1>Generated $now on $hostname</font>\n";
+    }
+    $total = 0;
+}
+
+sub epage
+{
+    if ($Opt{H}) {
+	print OUT "<p>\n";
+	print OUT "<b>$lastdate</b>\n";
+	&links();
+	print OUT "<font size=-1>$total logs today, $grandtotal logs so far</font>\n";
+	print OUT "</body>\n";
+	print OUT "</html>\n";
+    }
+    close(OUT);
+}
+
+$grandtotal = 0;
+$i = 0;
+$lastdate = "";
+foreach $key (reverse sort keys %finder) {
+    $name = $name{$key};
+    $finder = $finder{$key};
+    $type = $type{$key};
+    $date = $date{$key};
+    $text = $text{$key};
+
+    if ($date ne $lastdate) {
+	last if ($Opt{f} ne "" && $Opt{n} && $pagenum >= $Opt{n});
+	&epage() if ($pagenum);
+	&spage();
+	$lastdate = $date;
+    }
+
+    if ($Opt{F} && $type !~ /Found it/ && $type !~ /Attended/ 
+	&& $type !~ /Webcam Photo/) { next; }
+    $type =~ s/Found it/found it/;
+    $type =~ s/Write note/wrote note/;
+    $type =~ s/Didn't find it/didn't find it/;
+
+    if ($Opt{H}) {
+	$cid = $cid{$key};
+	$url = "http://www.geocaching.com/seek/cache_details.aspx?log=y"
+		. "&id=$cid";
+	$urlgal = "http://www.geocaching.com/seek/gallery.aspx"
+		. "?id=$cid";
+	$camera = "http://www.geocaching.com/images/icon_camera.gif";
+	$type =~ s/found it/<font color=green>found it<\/font>/;
+	$type =~ s/didn't find it/<font color=red>didn't find it<\/font>/;
+
+	print OUT "<hr>\n";
+	print OUT "<b><a href=$url>$name</a>. ";
+	print OUT "<a href=$urlgal><img src=$camera border=0 alt=gallery></a> ";
+	print OUT "&nbsp; &nbsp;";
+	print OUT "$finder $type on $date.</b>\n";
+	print OUT "<br>\n";
+	$text =~ s/\n/\n<br>/g;
+	print OUT $text;
+	print OUT "<p>\n";
+    } else {
+	print OUT "$sep";
+	print OUT "$name.  ";
+	print OUT "$finder $type $date.\n";
+	print OUT "$sep";
+
+	print OUT wrap("    ", "    ", "$text");
+	print OUT "\n";
+	print OUT "\n";
+    }
+    ++$total;
+    ++$grandtotal;
+    last if ($Opt{f} eq "" && $Opt{n} && ++$i >= $Opt{n});
+}
+
+&epage();
+
+if ($Opt{u} ne "") {
+    system("sort -u -o $Opt{u} $Opt{u}");
+}

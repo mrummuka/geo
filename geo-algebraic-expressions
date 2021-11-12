@@ -1,0 +1,125 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Solve a system of algebraic expressions
+
+SYNOPSIS
+    `basename $PROGNAME` [options] eqn ...
+
+DESCRIPTION
+    Solve a system of algebraic expressions.  Needs sympy installed.
+    It's really a helper script to put the 'eqn's into Python's syntax.
+
+OPTIONS
+    -i		Use integers only
+    -D lvl	Debug level [0]
+
+EXAMPLES
+    Solve a+b=10, a-b=7:
+
+	$ geo-algebraic-expressions a+b=10 a-b=7
+	{b: 3/2, a: 17/2}
+
+    Solve http://coord.info/GC5NTN7:
+
+	geo-algebraic-expressions -i 22+c=a 23+c=b a+b=111 d+e=22 e+f=c \\
+	    f+g=23 3+h=d h+i=e i+j=f j+6=g
+	{j: 1, c: 33, f: 16, a: 55, d: 5, i: 15, b: 56, e: 17, g: 7, h: 2}
+
+SEE ALSO
+    http://www.sympy.org/
+    http://docs.sympy.org/dev/install.html
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+INTS=0
+while getopts "iD:h?" opt
+do
+	case $opt in
+	i)	INTS=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+if ! which isympy >/dev/null 2>&1; then
+    error "You need to install pythons 'isympy' (yum install isympy)"
+fi
+
+for i in $*; do
+    echo "$i"
+done |
+awk -v DEBUG=$DEBUG -v INTS=$INTS '
+function debug(lvl, text) {
+    if (lvl <= DEBUG)
+        printf "debug: %s", text > "/dev/stderr"
+}
+function sympy_printf(str) {
+    printf str | cmd
+    debug(1, str)
+}
+function sympy_solve(eqns, vars) {
+    cmd = "cat"
+    cmd = "python"
+    commavars = vars
+    gsub(" ", ",", commavars)	# i.e. a b c		-> a,b,c,
+    gsub(",$", "", commavars)	# i.e. a,b,c,		-> a,b,c
+    gsub(",$", "", eqns)	# i.e. a=1,b=2,c=3,	-> a=1,b=2,c=3
+    printf("from sympy import *\n") | cmd
+    printf("%s = symbols(\"%s\", integer=True)\n", commavars, vars) | cmd
+    sympy_printf( sprintf("%s = symbols(\"%s\", %s)\n",
+		    commavars, vars, INTS ? "integer=True" : "") )
+    sympy_printf( sprintf("print solve([%s],[%s])\n", eqns, commavars) )
+    close(cmd)
+}
+BEGIN {
+}
+{
+    gsub("=", "-(")	# convert =a to -(a)
+    gsub("\\^", "**")	# convert ^ to **
+    eqns = eqns $0 "),"
+    var = $0
+    gsub("[^a-zA-Z]", "", var)
+    for (i = 1; i <= length(var); ++i)
+    {
+	c = substr(var, i, 1)
+	if (!index(vars, c))
+	    vars = vars c " "
+    }
+}
+END {
+    sympy_solve(eqns, vars)
+}
+'

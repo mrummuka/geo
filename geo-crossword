@@ -1,0 +1,126 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Search for words in /usr/share/dict/words
+
+SYNOPSIS
+    `basename $PROGNAME` [options] letters ...
+
+DESCRIPTION
+    Search for words in /usr/share/dict/words.
+
+    If 'letters' is prefixed by '!' or '^' then complement the search.
+
+OPTIONS
+    -w words	Take words from file
+    -D lvl	Debug level
+
+EXAMPLE
+    Search for 4 letter words:
+
+	$ geo-crossword ade asw . bd
+	asgd
+	awed
+	dabb
+	dand
+	darb
+	dard
+	daub
+	daud
+
+    Search in french:
+
+	$ geo-crossword -w ~/lib/geo/french aeou mtcrpaeou p ou t aeou mtcrp
+	amputer
+	empoter
+
+    Search in german:
+
+	$ geo-crossword -w ~/lib/geo/ngerman a lz . e
+	alle
+	alte
+
+    Search in spanish:
+
+	$ geo-crossword -w ~/lib/geo/spanish a avr a . a
+	arada
+	arana
+	avara
+
+    Don't search for 'ilstcg':
+
+	$ geo-crossword z '!ilstcg' ^ilstcg a ^ilstcg
+	zakah
+	zaman
+	zoeae
+	zonar
+
+SEE ALSO
+    http://www.a2zwordfinder.com/crossword_dictionary.html
+
+    https://packages.ubuntu.com/trusty/wfrench
+
+    https://packages.ubuntu.com/trusty/wngerman
+
+    https://packages.ubuntu.com/trusty/wspanish
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+WORDS=/usr/share/dict/words
+while getopts "w:D:h?" opt
+do
+	case $opt in
+	w)	WORDS="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    usage
+fi
+
+cmd="^"
+for i in $*; do
+    case "$i" in
+    '!'*|^*)
+	let=`echo "$i" | sed -e 's/!/^/' -e "s/^/[/" -e 's/$/]/'  `
+	;;
+    *)
+	let=`echo "$i" | sed -e "s/[|,]//g" -e "s/./&|/g" -e "s/|$//"  `
+	;;
+    esac
+    # echo $let
+    cmd="$cmd($let)"
+done
+cmd="$cmd$"
+# echo $cmd
+egrep -a "$cmd" $WORDS

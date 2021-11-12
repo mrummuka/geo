@@ -1,0 +1,233 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Do a substitution (caesar) cipher for all shifts.
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [text ...] [file]
+
+DESCRIPTION
+    Do a substitution (caesar) cipher for all shifts.  a-z is the default,
+    option -n selects 0-9, -b selects a-z1234567890.
+
+    You can use command line arguments for "text", or a filename, or
+    standard input.
+
+OPTIONS
+    -a		addletters output
+    -o opt	addletters options
+    -n		Select 0-9
+    -b		Select a-z1-90
+    -c		Circular rotation
+    -D lvl	Debug level
+
+EXAMPLES
+    # the cache is here
+
+	$ geo-sub bpm kikpm qa pmzm
+	Shift   Substitution cipher (Caesar)
+	0:      bpm kikpm qa pmzm
+	1:      cqn ljlqn rb qnan
+	2:      dro mkmro sc robo
+	3:      esp nlnsp td spcp
+	4:      ftq omotq ue tqdq
+	5:      gur pnpur vf urer
+	6:      hvs qoqvs wg vsfs
+	7:      iwt rprwt xh wtgt
+	8:      jxu sqsxu yi xuhu
+	9:      kyv trtyv zj yviv
+	10:     lzw usuzw ak zwjw
+	11:     max vtvax bl axkx
+	12:     nby wuwby cm byly
+	13:     ocz xvxcz dn czmz
+	14:     pda ywyda eo dana
+	15:     qeb zxzeb fp ebob
+	16:     rfc ayafc gq fcpc
+	17:     sgd bzbgd hr gdqd
+	18:     the cache is here     <--- here it is
+	19:     uif dbdif jt ifsf
+	20:     vjg ecejg ku jgtg
+	21:     wkh fdfkh lv khuh
+	22:     xli gegli mw livi
+	23:     ymj hfhmj nx mjwj
+	24:     znk igink oy nkxk
+	25:     aol jhjol pz olyl
+	26:     bpm kikpm qa pmzm
+
+    # http://coord.info/GC2T23M
+
+	$ geo-sub rsvxl jsvxc xmwjj° jtwyd.chur qpg irxu
+	Shift   Substitution cipher (Caesar)
+	0:      rsvxl jsvxc xmwjj° jtwyd.chur qpg irxu
+	1:      stwym ktwyd ynxkk° kuxze.divs rqh jsyv
+	2:      tuxzn luxze zoyll° lvyaf.ejwt sri ktzw
+	3:      uvyao mvyaf apzmm° mwzbg.fkxu tsj luax
+	4:      vwzbp nwzbg bqann° nxach.glyv utk mvby
+	5:      wxacq oxach crboo° oybdi.hmzw vul nwcz
+	6:      xybdr pybdi dscpp° pzcej.inax wvm oxda
+	7:      yzces qzcej etdqq° qadfk.joby xwn pyeb
+	8:      zadft radfk fuerr° rbegl.kpcz yxo qzfc
+	9:      abegu sbegl gvfss° scfhm.lqda zyp ragd
+	10:     bcfhv tcfhm hwgtt° tdgin.mreb azq sbhe
+	11:     cdgiw udgin ixhuu° uehjo.nsfc bar tcif
+	12:     dehjx vehjo jyivv° vfikp.otgd cbs udjg
+	13:     efiky wfikp kzjww° wgjlq.puhe dct vekh
+	14:     fgjlz xgjlq lakxx° xhkmr.qvif edu wfli
+	15:     ghkma yhkmr mblyy° yilns.rwjg fev xgmj
+	16:     hilnb zilns ncmzz° zjmot.sxkh gfw yhnk
+	17:     ijmoc ajmot odnaa° aknpu.tyli hgx ziol
+	18:     jknpd bknpu peobb° bloqv.uzmj ihy ajpm
+	19:     kloqe cloqv qfpcc° cmprw.vank jiz bkqn
+	20:     lmprf dmprw rgqdd° dnqsx.wbol kja clro
+	21:     mnqsg enqsx shree° eorty.xcpm lkb dmsp  <--- part 2
+	22:     north forty tisff° fpsuz.ydqn mlc entq  <--- part 1
+	23:     opsui gpsuz ujtgg° gqtva.zero nmd four  <--- part 3,5
+	24:     pqtvj hqtva vkuhh° hruwb.afsp one gpvs  <--- part 4
+	25:     qruwk iruwb wlvii° isvxc.bgtq pof hqwt
+	26:     rsvxl jsvxc xmwjj° jtwyd.chur qpg irxu
+
+    # Circular
+
+	$ echo NPTWL KUYBH DHA QSVHVWL | geo-sub -c
+	Left:   NORTH FORTY TWO DEGREES
+	Right:  NQVZP PAFJQ NSM DGKXMOE
+	
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ADDLET=0
+MODE=a
+OPT=
+CIRCULAR=0
+ALPHA="a b c d e f g h i j k l m n o p q r s t u v w x y z a"
+while getopts "abcno:D:h?" opt
+do
+	case $opt in
+	a)	ADDLET=1;;
+	n)	MODE=n; ALPHA="0 1 2 3 4 5 6 7 8 9";;
+	b)	MODE=an
+		ALPHA="a b c d e f g h i j k l m n o p q r s t u v w x y z 1 2 3 4 5 6 7 8 9 0"
+		;;
+	c)	CIRCULAR=1;;
+	o)	OPT="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+circle() {
+    awk -v up=$1 '
+    BEGIN {
+	key0 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if (up)
+	    printf "Right:\t"
+	else
+	    printf "Left:\t"
+    }
+    {
+	for (i = 1; i <= length($0); i++)
+	{
+	    char = toupper( substr($0, i, 1) )
+	    #print "char: ", char
+	    a = index(key0, char)
+	    if (a != 0) 
+	    {
+		printf("%c", substr(key, a, 1))
+		if (up)
+		    key = substr(key, 2) substr(key, 1, 1)
+		else
+		    key = substr(key, 26, 1) substr(key, 1, 25)
+		#print "key: ", key
+	    }
+	    else
+		printf("%c", char)
+	}
+    }
+    END {
+	printf("\n")
+    }'
+}
+
+doit()
+{
+    if [ $CIRCULAR = 1 ]; then
+	circle 0 < $TMP
+	circle 1 < $TMP
+	return
+    fi
+
+    echo "Shift	Substitution cipher (Caesar)"
+    lasti=z
+    LASTI=Z
+    s=0
+    for i in $ALPHA; do
+	printf "$s:	"
+	((++s))
+	I=`echo $i | tr '[a-z]' '[A-Z]'`
+	if [ $ADDLET = 0 ]; then
+	    case "$MODE" in
+	    a)
+		tr '[a-zA-Z]' "[$i-za-${lasti}$I-ZA-${LASTI}]" < $TMP
+		;;
+	    n)
+		tr '[0-9]' "[$i-90-${lasti}]" < $TMP
+		;;
+	    an)
+		an="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+		ant=`expr substr $an $s $((36-s+1))``expr substr $an 1 $((s-1))`
+		tr a-z A-Z < $TMP | tr $an $ant
+		;;
+	    esac
+	else
+	    addletters $OPT -n \
+		`tr '[a-zA-Z]' "[$i-za-${lasti}$I-ZA-${LASTI}]" < $TMP`
+	fi
+	lasti=$i
+	LASTI=$I
+    done
+}
+
+TMP=/tmp/geo-sub$$
+trap "rm -f $TMP" EXIT
+
+if [ $# = 0 ]; then
+    while read text; do
+	echo "$text" > $TMP
+	doit
+    done
+elif [ -f "$1" ]; then
+    cat $* > $TMP
+    doit
+else
+    echo $* > $TMP
+    doit
+fi

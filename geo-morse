@@ -1,0 +1,292 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Morse decoder
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [morse] ...
+
+DESCRIPTION
+    Morse decoder.  Reads from the command line or stdin.
+
+OPTIONS
+    -a		Use American morse code instead of International morse code
+    -e		Encode morse
+    -s		Swap (dot is dash, dash is dot)
+    -D lvl	Debug level [0]
+
+EXAMPLES
+    Decode (note the "--" to protect the shell):
+
+	$ geo-morse -- -.-- --- ..- .-. / -- . ... ... .- --. .
+	your message
+
+    Encode and decode:
+
+	$ geo-morse -e abcdefghijklmnopqrstuvwxyz sos hello | geo-morse 
+	abcdefghijklmnopqrstuvwxyz sos hello 
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+AMERICAN=0
+ENCODE=0
+DEBUG=0
+SWAP="cat"
+while getopts "aesD:h?" opt
+do
+	case $opt in
+	a)	AMERICAN=1;;
+	e)	ENCODE=1;;
+	s)	SWAP="tr '\,\-' '\-\,'";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+one_word_per_line() {
+    tr " " "\n"
+}
+
+decode_american() {
+    # Some don't decode!
+    one_word_per_line |
+    tr '.01' ',,-' | $SWAP |
+    awk '
+    /^,-$/ { printf "a"; next }
+    /^-,,,$/ { printf "b"; next }
+    /^,,,$/ { printf "c"; next }
+    /^-,,$/ { printf "d"; next }
+    /^,$/ { printf "e"; next }
+    /^,-,$/ { printf "f"; next }
+    /^--,$/ { printf "g"; next }
+    /^,,,,$/ { printf "h"; next }
+    /^,,$/ { printf "i"; next }
+    /^-,-,$/ { printf "j"; next }
+    /^-,-$/ { printf "k"; next }
+    /^_$/ { printf "l"; next }
+    /^--$/ { printf "m"; next }
+    /^,,$/ { printf "o"; next }
+    /^,,,,,$/ { printf "p"; next }
+    /^,,-,$/ { printf "q"; next }
+    /^,,,$/ { printf "r"; next }
+    /^,,,$/ { printf "s"; next }
+    /^-$/ { printf "t"; next }
+    /^,,-$/ { printf "u"; next }
+    /^,,,-$/ { printf "v"; next }
+    /^,--$/ { printf "w"; next }
+    /^,-,,$/ { printf "x"; next }
+    /^,,,,$/ { printf "y"; next }
+    /^,,,,$/ { printf "z"; next }
+    /^,--,$/ { printf "1"; next }
+    /^,,-,,$/ { printf "2"; next }
+    /^,,,-,$/ { printf "3"; next }
+    /^,,,,-$/ { printf "4"; next }
+    /^---$/ { printf "5"; next }
+    /^,,,,,,$/ { printf "6"; next }
+    /^--,,$/ { printf "7"; next }
+    /^-,,,$/ { printf "8"; next }
+    /^-,,-$/ { printf "9"; next }
+    $1 != "" {
+        unk = $1
+        gsub(",", ".", unk)
+        printf "?%s? ", unk; next
+    }
+    END { printf "\n" }
+    '
+}
+
+decode_morse() {
+    one_word_per_line |
+    tr '.01' ',,-' | $SWAP |
+    awk '
+    /^,-$/ { printf "a"; next }
+    /^-,,,$/ { printf "b"; next }
+    /^-,-,$/ { printf "c"; next }
+    /^-,,$/ { printf "d"; next }
+    /^,$/ { printf "e"; next }
+    /^,,-,$/ { printf "f"; next }
+    /^--,$/ { printf "g"; next }
+    /^,,,,$/ { printf "h"; next }
+    /^,,$/ { printf "i"; next }
+    /^,---$/ { printf "j"; next }
+    /^-,-$/ { printf "k"; next }
+    /^,-,,$/ { printf "l"; next }
+    /^--$/ { printf "m"; next }
+    /^-,$/ { printf "n"; next }
+    /^---$/ { printf "o"; next }
+    /^,--,$/ { printf "p"; next }
+    /^--,-$/ { printf "q"; next }
+    /^,-,$/ { printf "r"; next }
+    /^,,,$/ { printf "s"; next }
+    /^-$/ { printf "t"; next }
+    /^,,-$/ { printf "u"; next }
+    /^,,,-$/ { printf "v"; next }
+    /^,--$/ { printf "w"; next }
+    /^-,,-$/ { printf "x"; next }
+    /^-,--$/ { printf "y"; next }
+    /^--,,$/ { printf "z"; next }
+    /^-----$/ { printf "0"; next }
+    /^,----$/ { printf "1"; next }
+    /^,,---$/ { printf "2"; next }
+    /^,,,--$/ { printf "3"; next }
+    /^,,,,-$/ { printf "4"; next }
+    /^,,,,,$/ { printf "5"; next }
+    /^-,,,,$/ { printf "6"; next }
+    /^--,,,$/ { printf "7"; next }
+    /^---,,$/ { printf "8"; next }
+    /^----,$/ { printf "9"; next }
+    /^,-,-$/ { printf "Ä"; next }
+    /^,--,-$/ { printf "Á"; next }
+    /^,--,-$/ { printf "Å"; next }
+    /^----$/ { printf "Ch"; next }
+    /^,,-,,$/ { printf "É"; next }
+    /^--,--$/ { printf "Ñ"; next }
+    /^---,$/ { printf "Ö"; next }
+    /^,,--,$/ { printf "Ü"; next }
+    /^,-,-,-$/ { printf "."; next }
+    /^--,,--$/ { printf ","; next }
+    /^---,,,$/ { printf ":"; next }
+    /^-,-,-,$/ { printf ";"; next }
+    /^,,--,,$/ { printf "?"; next }
+    /^,----,$/ { printf "'\''"; next }
+    /^-,,,,-$/ { printf "-"; next }
+    /^-,,-,$/ { printf "/"; next }
+    /^-,--,-$/ { if (paren) {printf ")"; paren=0} else {printf "("; paren=1} next }
+    /^,-,,-,$/ { printf "\""; next }
+    /^,--,-,$/ { printf "@"; next }
+    /^-,,,-$/ { printf "="; next }
+    /^\/$/ { printf " "; next }		# / is space
+    /^\\$/ { printf " "; next }		# \ is space
+    $1 != "" {
+	unk = $1
+	gsub(",", ".", unk)
+	printf "?%s? ", unk; next
+    }
+    END { printf "\n" }
+    '
+}
+
+encode_morse() {
+    awk '
+    {
+	for (i = 1; i <= NF; ++i)
+	{
+	    for (j = 1; j <= length($i); ++j)
+	    {
+		c = substr($i, j, 1)
+		c = tolower(c)
+		if (0)
+		    {}
+		else if (c == "a") printf ".-"
+		else if (c == "b") printf "-..."
+		else if (c == "c") printf "-.-."
+		else if (c == "d") printf "-.."
+		else if (c == "e") printf "."
+		else if (c == "f") printf "..-."
+		else if (c == "g") printf "--."
+		else if (c == "h") printf "...."
+		else if (c == "i") printf ".."
+		else if (c == "j") printf ".---"
+		else if (c == "k") printf "-.-"
+		else if (c == "l") printf ".-.."
+		else if (c == "m") printf "--"
+		else if (c == "n") printf "-."
+		else if (c == "o") printf "---"
+		else if (c == "p") printf ".--."
+		else if (c == "q") printf "--.-"
+		else if (c == "r") printf ".-."
+		else if (c == "s") printf "..."
+		else if (c == "t") printf "-"
+		else if (c == "u") printf "..-"
+		else if (c == "v") printf "...-"
+		else if (c == "w") printf ".--"
+		else if (c == "x") printf "-..-"
+		else if (c == "y") printf "-.--"
+		else if (c == "z") printf "--.."
+		else if (c == "0") printf "-----"
+		else if (c == "1") printf ".----"
+		else if (c == "2") printf "..---"
+		else if (c == "3") printf "...--"
+		else if (c == "4") printf "....-"
+		else if (c == "5") printf "....."
+		else if (c == "6") printf "-...."
+		else if (c == "7") printf "--..."
+		else if (c == "8") printf "---.."
+		else if (c == "9") printf "----."
+		else if (c == ".") printf ".-.-.-"
+		else if (c == ",") printf "--..--"
+		else if (c == "?") printf "..--.."
+		else if (c == "'\''") printf ".----."
+		else if (c == "!") printf "-.-.--"
+		else if (c == "/") printf "-..-."
+		else if (c == "(") printf "-.--."
+		else if (c == ")") printf "-.--.-"
+		else if (c == "&") printf ".-..."
+		else if (c == ":") printf "---..."
+		else if (c == ";") printf "-.-.-."
+		else if (c == "=") printf "-...-"
+		else if (c == "+") printf ".-.-."
+		else if (c == "-") printf "-....-"
+		else if (c == "_") printf "..--.-"
+		else if (c == "\"") printf ".-..-."
+		else if (c == "$") printf "...-..-"
+		else if (c == "@") printf ".--.-."
+		else { printf "? " }
+		printf " "
+	    }
+	    printf "/ "
+	}
+    }
+    END { printf "\n" }
+    '
+}
+
+#
+#	Main Program
+#
+if [ $ENCODE = 1 ]; then
+    if [ $# = 0 ]; then
+	encode_morse
+    else
+	echo "$*" | encode_morse
+    fi
+else
+    if [ $# = 0 ]; then
+	if [ $AMERICAN == 1 ]; then
+	    decode_american
+	else
+	    decode_morse
+	fi
+    else
+	if [ $AMERICAN == 1 ]; then
+	    echo "$*" | decode_american
+	else
+	    echo "$*" | decode_morse
+	fi
+    fi
+fi

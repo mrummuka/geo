@@ -1,0 +1,513 @@
+#!/bin/bash
+
+# Often called from cron, but convert is here...
+PATH="$PATH:/usr/bin/X11"
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Create a map of newest caches
+
+SYNOPSIS
+	`basename $PROGNAME` [options]
+
+DESCRIPTION
+	Create a map of newest caches for the MnGCA.
+
+OPTIONS
+	-a0	Use tiger for the maps and use tiger to place the markers
+		on the map.
+	-a num	Use geo-map and map source "num" for the maps. [$MAPSRC]
+	-g	Do not include geocaching.com caches
+	-n	Do not include navicache.com caches
+	-o	Do not include opencaching.com caches
+	-k	Do not include opencaching.us caches
+	-v	View-only, do not post the maps
+	-T dir	Temp directory name for results [$TMP]
+	-D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+dbgcmd() {
+	if [ $DEBUG -ge 1 ]; then
+	    echo "$@" >&2
+	fi
+	"$@"
+}
+
+#
+#       Process the options
+#
+MAPSRC=3
+DEBUG=0
+VIEW=0
+DO_NC=1
+DO_GC=1
+DO_OC=0
+DO_OK=1
+TMP=/tmp/mngca
+while getopts "a:gnovT:D:h?" opt
+do
+	case $opt in
+	a)	MAPSRC="$OPTARG";;
+	v)	VIEW=1;;
+	g)	DO_GC=0;;
+	n)	DO_NC=0;;
+	k)	DO_OK=0;;
+	o)	DO_OC=0;;
+	T)	TMP="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Post to the website
+#
+post() {
+    if false; then
+	dbgcmd ncftpput -r5 -F -f $SITE -m $SUBDIR $*
+    else
+	host=$(grep host "$SITE" | tail -1 | awk '{print $2}')
+	user=$(grep user "$SITE" | tail -1 | awk '{print $2}')
+	pass=$(grep pass "$SITE" | tail -1 | awk '{print $2}')
+
+	lftp <<-EOF
+	    #set xfer:log 1
+	    #set xfer:log-file /home/rick/xxx
+	    #set xfer:log-file -
+	    #set xfer:log-file /dev/stdout
+	    set sftp:auto-confirm yes
+	    open sftp://$host
+	    user $user $pass
+	    mkdir -f -p $SUBDIR
+	    cd $SUBDIR
+	    mput $*
+	    quit
+	EOF
+    fi
+}
+
+#
+#	A temporary style we can use for working with the waypoints
+#
+make_style() {
+    cat <<-EOF
+	FIELD_DELIMITER		TAB
+	RECORD_DELIMITER        NEWLINE
+	BADCHARS                TAB
+	IFIELD	SHORTNAME,	"",	"%s"
+	IFIELD	DESCRIPTION,	"",	"%s"
+	IFIELD	LAT_DECIMAL,	"",	"%.6f"
+	IFIELD	LON_DECIMAL,	"",	"%.6f"
+	IFIELD	ICON_DESCR,	"",	"%s"
+	IFIELD	TIMET_TIME,	"",	"%ld"
+	EOF
+}
+
+#
+#	Reverse the lines in a file
+#
+revlines() {
+    perl -e 'print reverse <>'
+}
+
+#
+#	Filter out caches which were placed before time $1
+#	(needed until gpsbabel has a time filter)
+#
+filter_time() {
+    awk -F '	' -v TIME=$1 '
+    {
+	if ($6 >= TIME)
+	    print
+    }
+    '
+}
+
+#
+#	make_map city state(s) radius lat lon
+#
+make_map() {
+    city="$1"
+    states="$2"
+    radius="$3"
+    lat="$4"
+    lon="$5"
+    xpixels="$6"
+    ypixels="$7"
+    on="$8"
+    off="$9"
+    minrad="${10}"
+    
+    TMPFMT="xcsv,style=$STYLE"
+    #
+    # If needed, get the newest 40 caches for these states
+    #
+    statelist=
+    for state in `echo $states | sed 's/,/ /g'`
+    do
+	if [ ! -f $TMP/$state.st ]; then
+	    > $TMP/$state.st
+	    if [ $DO_GC = 1 ]; then
+		geo-newest -m -D$DEBUG -o $TMPFMT -n 60 -M/dev/null \
+		    $state $lat $lon \
+		    >> $TMP/$state.st
+	    fi
+	    if [ $DO_NC = 1 ]; then
+		nc-newest -D$DEBUG -o $TMPFMT -n 20 $state $lat $lon \
+		    > $TMP/xxx.st
+		if [ $? == 0 ]; then
+		    cat $TMP/xxx.st >> $TMP/$state.st
+		fi
+	    fi
+	    if [ $DO_OC = 1 ]; then
+		if [ $state == MN ]; then
+		    oc-nearest -D$DEBUG -o $TMPFMT -n 100 -M/dev/null \
+			 $lat $lon \
+			>> $TMP/$state.st
+		fi
+	    fi
+	    if [ $DO_OK = 1 ]; then
+		if [ $state == MN ]; then
+		    ok-nearest -D$DEBUG -o $TMPFMT -n 100 -M/dev/null \
+			 $lat $lon \
+			>> $TMP/$state.st
+		fi
+	    fi
+	fi
+	statelist="$statelist -i $TMPFMT -f $TMP/$state.st"
+    done
+
+    #
+    # Filter the data to the desired radius around the city...
+    #
+    #	-x "duplicate,location" \
+    #
+    dbgcmd gpsbabel $statelist \
+	    -x "radius,distance=$radius,lat=$lat,lon=$lon,nosort" \
+	    -x "duplicate,location,shortname" \
+	    -o $TMPFMT -F- \
+    | sed -e 's/[$]//g' -e '/-event	/d' -e '/-cito	/d' \
+    | filter_time `date -d "14 days ago" +%s` \
+    | sort -t '	' -r -n -k6 > $TMP/$city.st
+
+    if [ -s $TMP/$city.st ]; then
+	#
+	# Create the HTML for the city page...
+	#
+	awk -F'	' -v CITY=$city -v OLDTHRESH=$OLDTHRESH '
+	BEGIN {
+	    GCBASE = "http://www.geocaching.com/seek/cache_details.aspx?wp="
+	    NCBASE = "http://www.navicache.com/cgi-bin/db/displaycache2.pl?CacheID="
+	    OCBASE = "http://www.OpenCaching.com/#geocache/"
+	    OKBASE = "http://www.opencaching.us/viewcache.php?cacheid="
+	    DOTBASE = "http://tiger.census.gov/tigerwww/markers/"
+	    DOTBASE = ""
+	    ODOT = "reddot10.gif"
+	    NDOT = "grndot10.gif"
+	    UDOT = "magdot10.gif"
+
+	    cmd = sprintf("date -d \"%d days ago\" +%%s", OLDTHRESH)
+	    cmd | getline NEWTIME; close(cmd)
+
+	    print "<html><head>"
+	    print "<META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\">"
+	    print "<META HTTP-EQUIV=\"Expires\" CONTENT=\"-1\">"
+	    printf "<title>Newest %s Caches</title>\n", CITY
+	    print "</head>"
+	    print "<body>"
+	    printf "<img src=\"%s.gif\" usemap=\"#%s\">\n", CITY, CITY
+	    print "<hr>"
+	    printf "<img src=\"%s%s\">\n", DOTBASE, UDOT
+	    print "&nbsp;Unfound Cache"
+	    printf "<img src=\"%s%s\">\n", DOTBASE, NDOT
+	    print "&nbsp;New Cache"
+	    printf "<img src=\"%s%s\">\n", DOTBASE, ODOT
+	    printf "&nbsp;Cache older than %d days", OLDTHRESH
+	    print "<hr>"
+	    print "<table>"
+	}
+	/^GC/ {
+	    if ($5 ~ /-unfound/)
+		dot = DOTBASE UDOT
+	    else if ($6 >= NEWTIME)
+		dot = DOTBASE NDOT
+	    else
+		dot = DOTBASE ODOT
+
+	    if ($5 ~ /-unknown/)
+		type = "Mystery"
+	    else if ($5 ~ /-multi/)
+		type = "Multi"
+	    else if ($5 ~ /-mega/)
+		type = "Mega"
+	    else
+		type = "Regular"
+
+	    printf "<tr><td><img src=\"%s\">&nbsp;%s</td>" \
+		    "<td>%s</td>" \
+		    "<td><a href=\"%s%s\"> %s </a></td></tr>\n",
+		    dot, $1, type, GCBASE, $1, $2
+	}
+	/^[0-9]/ {
+	    if ($5 ~ /-unfound/)
+		dot = DOTBASE UDOT
+	    else if ($6 >= NEWTIME)
+		dot = DOTBASE NDOT
+	    else
+		dot = DOTBASE ODOT
+	    type = ""
+
+	    printf "<tr><td><img src=\"%s\">&nbsp;N%05X</td>" \
+		    "<td>%s</td>" \
+		    "<td><a href=\"%s%s\"> %s </a></td></tr>\n",
+		    dot, $1, type, NCBASE, $1, $2
+	}
+	/^OX/ {
+	    if ($5 ~ /-unfound/)
+		dot = DOTBASE UDOT
+	    else if ($6 >= NEWTIME)
+		dot = DOTBASE NDOT
+	    else
+		dot = DOTBASE ODOT
+	    if ($5 ~ /-unknown/)
+		type = "Mystery"
+	    else if ($5 ~ /-multi/)
+		type = "Multi"
+	    else
+		type = "Regular"
+
+	    printf "<tr><td><img src=\"%s\">&nbsp;%s</td>" \
+		    "<td>%s</td>" \
+		    "<td><a href=\"%s%s\"> %s </a></td></tr>\n",
+		    dot, $1, type, OCBASE, $1, $2
+	}
+	/^OU/ {
+	    if ($5 ~ /-unfound/)
+		dot = DOTBASE UDOT
+	    else if ($6 >= NEWTIME)
+		dot = DOTBASE NDOT
+	    else
+		dot = DOTBASE ODOT
+	    if ($5 ~ /-unknown/)
+		type = "Mystery"
+	    else if ($5 ~ /-multi/)
+		type = "Multi"
+	    else
+		type = "Regular"
+
+	    id = $1; sub(/^OU/, "0x", id)
+	    printf "<tr><td><img src=\"%s\">&nbsp;%s</td>" \
+		    "<td>%s</td>" \
+		    "<td><a href=\"%s%s\"> %s </a></td></tr>\n",
+		    dot, $1, type, OKBASE, id, $2
+	}
+	END {
+	    print "</table>"
+	    print "<font size=-2>Page generated on"
+	    system("date");
+	    print "</font>"
+	}
+	' $TMP/$city.st > $TMP/$city.html
+
+	#
+	# Build the map.
+	#
+	utime=`date +%s`
+	TFMT="tiger,genurl=$TMP/$city.ctr,snlen=20,margin=0.1,suppresswhite"
+	TFMT="$TFMT,xpixels=$xpixels,ypixels=$ypixels,oldthresh=$OLDTHRESH"
+	TFMT="$TFMT,oldmarker=reddot10,newmarker=grndot10,unfoundmarker=magdot10"
+	# re-sort waypoints so that unfound's will be mapped last
+	# and convert to extended tiger format
+	sort -t'	' -k5 $TMP/$city.st \
+	| awk -F'	' -vutime=$utime >$TMP/$city.tiger '
+	BEGIN {
+	    print "#tms-marker"
+	}
+	{
+	    name = $2
+	    sub("^The ", "", name)
+	    sub("^the ", "", name)
+	    sub(" by .*", "", name)
+	    gsub(" ", "", name)
+	    gsub(":", "-", name)
+	    name = substr(name, 1, 20)
+
+	    age = utime - $6
+	    if ($5 ~ /unfound/)
+		marker = "magdot10"
+	    else if (age >= (10 * 60*60*24))
+		marker = "reddot10"
+	    else
+		marker = "grndot10"
+	    id = $1
+	    if ($1 ~ /OX/)
+		base = "http://www.OpenCaching.com/#geocache/"
+	    else if ($1 ~ /OU/)
+	    {
+		base = "http://www.opencaching.us/viewcache.php?cacheid="
+		sub(/^OU/, "0x", id)
+	    }
+	    else
+		base = "http://www.geocaching.com/seek/cache_details.aspx?wp="
+	    printf "%s,%s:%s:%s:%s%s\n", $4, $3, marker, name, base, id
+	}'
+
+	if [ "$MAPSRC" = 0 ]; then
+	    # Use tiger to make and annotate the maps...
+	    post $TMP/$city.tiger
+	    sleep 5
+	    dbgcmd curl $CURL_OPTS -s -o $TMP/$city.w $URL/$city.tiger
+
+	    dbgcmd curl $CURL_OPTS -s \
+	    "$TIGERURL$URL/$city.tiger&"$(cat $TMP/$city.ctr)"&on=$on&off=$off"\
+	    -o $TMP/$city.gif
+	else
+	    # Use geo-map to make and annotate the maps...
+	    dbgcmd geo-map -a$MAPSRC -r$minrad -s0 -t $TMP/$city.tiger \
+		-W$xpixels -H$ypixels \
+		-o $TMP/$city.png \
+		-h +$TMP/${city}.html
+	    # Convert does a crappy job of optimizing GIF's, so we make a PNG,
+	    # then lie about its name...
+	    mv $TMP/$city.png $TMP/$city.gif
+	fi
+
+	#
+	# Finish off the city HTML
+	#
+	cat <<-EOF >> $TMP/$city.html
+		</body></html>
+	EOF
+
+	#
+	# Post the map
+	#
+	if [ "$VIEW" = 1 ]; then
+	    xv $TMP/$city.gif &
+	else
+	    post $TMP/$city.html $TMP/$city.gif
+	fi
+    else
+	#
+	# No new caches for this city
+	#
+	cat <<-EOF > $TMP/$city.html
+		<html><head>
+		<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
+		<META HTTP-EQUIV="Expires" CONTENT="-1">
+		<title>Newest $city Caches</title>
+		</head>
+		<body>
+		Sorry, No new caches for $city.
+		</body>
+		<hr>
+		<font size=-2>Page generated on
+		`date`
+		</font>
+		</body></html>
+	EOF
+
+	if [ "$VIEW" = 0 ]; then
+	    post $TMP/$city.html
+	fi
+    fi
+
+    echo "<br><li><a href=$city.html>$city</a></li>" >> $TMP/index.html
+}
+
+#
+#	Main Program
+#
+OLDTHRESH=10
+PATH="$PATH:$HOME/bin:/usr/local/bin"
+TIGERURL="http://tiger.census.gov/cgi-bin/mapgen?murl="
+
+[ -d "$TMP" ] || mkdir $TMP || error "Can't make directory '$TMP'"
+if [ $DEBUG = 0 ]; then
+    rm -f $TMP/*.st
+fi
+
+# website locations
+SUBDIR=mngca/maps
+URL=http://mngca.rkkda.com/$SUBDIR/
+SITE=$HOME/.ncftp-rkkda
+
+#
+#	Output header of main index page
+#
+cat <<-EOF > $TMP/index.html
+	<html>
+	<head>
+	<title>Newest Caches in MnGCA Region</title>
+	</head>
+	<body>
+	<h2>Newest Caches in MnGCA Region</h2>
+	<ul>
+EOF
+
+STYLE=$TMP/map.style
+make_style > $STYLE
+
+#
+#	Create maps for various cities
+#
+X1=768
+Y1=768
+ON1=places,majroads,interstate,statehwy,ushwy,water,miscell
+OF1=
+ON2=CITIES,interstate,statehwy,ushwy,water,miscell
+OF2=places,majroads
+
+#	 City		States	Radius	Lat	Lon	X   Y   ON   OFF  MinRad
+if [ $DEBUG = 0 ]; then
+make_map Statewide	MN	1000	45	-93	$X1 $Y1 $ON2 "$OF2" 0.2
+make_map Duluth		MN,WI	45	46.8	-92	$X1 $Y1 $ON1 "$OF1" 0.2
+make_map Mankato	MN	45	44.165	-94	$X1 $Y1 $ON1 "$OF1" 0.2
+make_map Morehead	MN,ND	60	46.876	-96.791	$X1 $Y1 $ON1 "$OF1" 0.2
+make_map Rochester	MN	45	44	-92.4	$X1 $Y1 $ON1 "$OF1" 0.2
+make_map StCloud	MN	45	45.57	-94.18	$X1 $Y1 $ON1 "$OF1" 0.2
+make_map TwinCities	MN,WI	45	45	-93	$X1 $Y1 $ON1 "$OF1" 0.2
+else
+make_map TwinCities	MN	45	45	-93	$X1 $Y1 $ON1 "$OF1" 0.2
+exit
+fi
+
+#
+#	Output footer of main index page
+#
+cat <<-EOF >> $TMP/index.html
+	</ul>
+	<p><font size=-1>
+	    Cache maps are updated at 5AM every morning.
+	</font></p>
+	</body>
+	</html>
+EOF
+
+if [ "$VIEW" = 0 ]; then
+    post $TMP/index.html \
+	/tmp/geo/images/magdot10.gif \
+	/tmp/geo/images/grndot10.gif \
+	/tmp/geo/images/reddot10.gif
+fi

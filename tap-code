@@ -1,0 +1,206 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Tap Code or Polybius Square decoder
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [codes]
+
+DESCRIPTION
+    The tap code, sometimes called the knock code, is a way to encode messages,
+    letter by letter, in a very simple way and transmit it using a series of
+    tap sounds, hence its name. It has been commonly used by prisoners to
+    communicate with each other. The method of communicating is usually by
+    "tapping" either the metal bars, pipes or the walls inside the cell.
+
+    tap-code can read from stdin or on the command line.
+
+    With -c (default):
+
+	row/col	1 	2 	3 	4 	5
+	1 	A 	B 	C/K 	D 	E
+	2 	F 	G 	H 	I 	J
+	3 	L 	M 	N 	O 	P
+	4 	Q 	R 	S 	T 	U
+	5 	V 	W 	X 	Y 	Z
+
+    Or with -i:
+
+	row/col	1 	2 	3 	4 	5
+	1 	A 	B 	C 	D 	E
+	2 	F 	G 	H 	I/J 	K
+	3 	L 	M 	N 	O 	P
+	4 	Q 	R 	S 	T 	U
+	5 	V 	W 	X 	Y 	Z
+
+    Or with -u:
+
+	row/col	1 	2 	3 	4 	5
+	1 	A 	B 	C 	D 	E
+	2 	F 	G 	H 	I 	J
+	3 	K 	L 	M 	N 	O
+	4 	P 	Q 	R 	S 	T
+	5 	U/V 	W 	X 	Y 	Z
+
+    Or with -6:
+
+	row/col	1 	2 	3 	4 	5	6
+	1 	A 	B 	C 	D 	E	F
+	2 	G 	H 	I 	J	K	L
+	3 	M 	N 	O	P	Q	R
+	4 	S 	T	U	V	W	X
+	5 	Y 	Z	0	1	2	3
+	6 	4	5	6	7	8	9
+
+    It can use a period (.) or a asterisk (*).  A slash (/) is translated to
+    a space.
+
+    A polybius square is like a tap code except you use two numbers instead
+    of tapping.
+
+OPTIONS
+    -n		Numbers instead of '.' or '*'
+    -r		Col/Row instead of Row/Col
+    -c		Combine c/k (default)
+    -i		Combine i/j instead of c/k
+    -u		Combine u/v instead of c/k
+    -6		Matrix is 6x6, A..Z and 0..9 can be done.
+    -D lvl	Debug level
+
+EXAMPLES
+    Decode two words by tapping:
+
+	$ echo ". . / .... ....  . .  ... ....." | tap-code
+	a tap
+
+    Decode 5 words by polybius square:
+
+	$ echo "44232443 2443 11 431513421544 32154343112215" | tap-code -i -n
+	this is a secret message
+
+    Decode from the command line:
+
+	$ tap-code 44-23-15 / 42-24-13-23 / 52-11-33-44 / 24-44
+	the rich want it
+
+    Decode with 6x6 matrix:
+
+	$ tap-code -6 31 15 15 42 / 42 22 43 / 55 56 53 53 22 36
+	meet thu 2300hr
+
+SEE ALSO
+    http://en.wikipedia.org/wiki/Tap_code
+
+    http://en.wikipedia.org/wiki/Polybius_square
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+NUM=0
+IJ=c
+REV=0
+SIZE=5
+while getopts "cinru6D:h?" opt
+do
+	case $opt in
+	c)	IJ=c;;
+	i)	IJ=i;;
+	n)	NUM=1;;
+	r)	REV=1;;
+	u)	IJ=u;;
+	6)	SIZE=6;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+one_word_per_line() {
+    tr -cs "[:alnum:]/" "\n"
+}
+
+#
+#	Main Program
+#
+doit() {
+    if [ $NUM = 1 ]; then
+	sed -e 's/ /sp /g' -e 's/[0-9][0-9]/& /g'
+    else
+	tr '*' '.' |
+	sed \
+	    -e 's/\…/.../g' \
+	    -e 's/\.\.\.\.\./5/g' \
+	    -e 's/\.\.\.\./4/g' \
+	    -e 's/\.\.\./3/g' \
+	    -e 's/\.\./2/g' \
+	    -e 's/\./1/g' \
+	    -e 's/\([0-9]\) *\([0-9]\)/\1\2/g'
+    fi |
+    one_word_per_line |
+    awk -v IJ=$IJ -v REV=$REV -v SIZE=$SIZE '
+    BEGIN {
+	if (SIZE == "6")
+	    ps="abcdefghijklmnopqrstuvwxyz0123456789"
+	else if (IJ == "c")
+	    ps="abcdefghijlmnopqrstuvwxyz"
+	else if (IJ == "i")
+	    ps="abcdefghiklmnopqrstuvwxyz"
+	else if (IJ == "u")
+	    ps="abcdefghijklmnopqrstuwxyz"
+	else
+	{
+	    printf "tap-code: no decode for %s\n", IJ
+	}
+    }
+    /[1-6][1-6]/ {
+	if (REV)
+	{
+	    c = substr($0, 1, 1)
+	    r = substr($0, 2, 1)
+	}
+	else
+	{
+	    r = substr($0, 1, 1)
+	    c = substr($0, 2, 1)
+	}
+	if (SIZE == 5 && (c == 6 || r == 6) )
+	{
+	    printf "\ntap-code: error: no decode for %s%s!\n", r, c
+	    exit
+	}
+	printf substr(ps, (r-1)*SIZE + c, 1)
+    }
+    /\// { printf " " }
+    /sp/ { printf " " }
+    END { printf "\n" }
+    '
+}
+
+if [ $# = 0 ]; then
+    doit
+else
+    echo $* | doit
+fi

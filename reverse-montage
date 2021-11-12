@@ -1,0 +1,111 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - reverse (split up) montage image
+
+SYNOPSIS
+    `basename $PROGNAME` [options] rows columns file ...
+
+DESCRIPTION
+    Reverse (split up) a montage image. Files are written to
+    file-row-col.jpg.
+
+OPTIONS
+    -x offset	Left offset ($LEFT)
+    -X offset	Right offset ($RIGHT)
+    -y offset	Top offset ($TOP)
+    -Y offset	Bottom offset ($BOTTOM)
+    -D lvl	Debug level
+
+EXAMPLES
+    Reverse montage http://coord.info/GC491T7:
+
+	$ reverse-montage 3 5 ladies.png
+	$ eog ladies-*.jpg
+
+    Reverse montage http://coord.info/GC48JGN:
+
+	$ reverse-montage 3 3 surv1.jpg
+	$ reverse-montage 3 3 surv2.jpg
+	$ eog surv1-*.jpg surv2-*.jpg
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+LEFT=0
+RIGHT=0
+TOP=0
+BOTTOM=0
+while getopts "x:X:y:Y:D:h?" opt
+do
+	case $opt in
+	x)	LEFT="$OPTARG";;
+	X)	RIGHT="$OPTARG";;
+	y)	TOP="$OPTARG";;
+	Y)	BOTTOM="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# -lt 3 ]; then
+    usage
+fi
+
+nw=$2
+nh=$1
+shift 2
+for ifile in $*; do
+    if [ ! -r "$ifile" ]; then
+	error "can't access '$ifile' for reading"
+    fi
+
+    w=`identify -format "%w" $ifile`
+    h=`identify -format "%h" $ifile`
+    ofile=`echo $ifile | sed 's/\..*//' `
+    rm -f $ofile-[0-9]*-[0-9]*.jpg
+    ((w=w-LEFT-RIGHT))
+    ((h=h-TOP-BOTTOM))
+    ((cw=w/nw))
+    ((ch=h/nh))
+    ((i=1))
+    while ((i <= nw)); do
+	((j=1))
+	while ((j <= nh)); do
+	    ofile=`echo $ifile | sed 's/\..*//' `-$j-$i.jpg
+	    ((cx=(i-1)*cw+LEFT))
+	    ((cy=(j-1)*ch+TOP))
+	    convert $ifile -crop ${cw}x${ch}+${cx}+${cy} $ofile
+	    ((++j))
+	done
+    ((++i))
+    done
+done

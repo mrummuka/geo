@@ -1,0 +1,196 @@
+##############################################################################
+# begin #include "geo-common-tangogps"
+##############################################################################
+
+#
+# default MySQL global options...
+#
+SQLUSER=gast
+SQLPASS=gast
+SQLDB=$HOME/.tangogps/poi.db
+SQLTAG=Geocache
+EXCLUDE="Geocache Found|-ifound"
+
+#
+#	Assocative (hash) arrays
+#
+#	hash_insert myhash abc 1
+#	hash_find myhash abc
+#	hash_keys myhash
+#
+hash_insert ()
+{
+    local name="$1" key="$2" val="$3"
+    key=`echo "$key" | tr ' /&-' '____'`
+    eval __hash_${name}_${key}=$val
+}
+hash_find ()
+{
+    local name="$1" key="$2"
+    key=`echo "$key" | tr ' /&-' '____'`
+    local var=__hash_${name}_${key}
+    echo ${!var}
+}
+hash_keys ()
+{
+    local name="$1"
+    compgen -A variable __hash_${name} | sed "s/__hash_${name}_//"
+}
+
+hash_insert cap Accomodation 1
+hash_insert cap Businesses 2
+hash_insert cap Car 3
+hash_insert cap Cultural 4
+hash_insert cap Medical 5
+hash_insert cap "Cafe / Pub / Nightlife" 6
+hash_insert cap "Place of Worship" 7
+hash_insert cap "Public Transportation" 8
+hash_insert cap "Restaurant & Food" 9
+hash_insert cap Services 10
+hash_insert cap "Sights & Leisure" 11
+hash_insert cap Shopping 12
+hash_insert cap Sports 13
+hash_insert cap "My Personal Places" 14
+hash_insert cap Geocache 15
+
+hash_insert subcap "Traditional Cache" 1
+hash_insert subcap "Multi-cache" 2
+hash_insert subcap "Virtual Cache" 3
+hash_insert subcap "Letterbox Hybrid" 4
+hash_insert subcap "Event Cache" 5
+hash_insert subcap "Unknown Cache" 6
+hash_insert subcap "Unknown" 6
+hash_insert subcap "Project Ape" 7
+hash_insert subcap "Webcam Cache" 8
+hash_insert subcap "Cache In Trash Out Event" 9
+hash_insert subcap Earthcache 10
+hash_insert subcap "Mega-Event" 11
+hash_insert subcap "GPS Adventures" 12
+hash_insert subcap Wherigo 13
+hash_insert subcap Other 14
+
+#
+# procedures for updating tangogps database via MySQL
+#
+#	Global Vars:	$SQLDB, $SQLTAG $OUTFILE
+#
+
+tangogps_create() {
+    echo "CREATE TABLE poi ("
+    echo "	idmd5 TEXT, "
+    echo "	lat REAL, "
+    echo "	lon REAL, "
+    echo "	visibility REAL, "
+    echo "	cat REAL, "
+    echo "	subcat REAL, "
+    echo "	keywords TEXT, "
+    echo "	desc TEXT, "
+    echo "	price_range REAL, "
+    echo "	extended_open REAL, "
+    echo "	creator TEXT, "
+    echo "	bookmarked REAL, "
+    echo "	user_rating REAL, "
+    echo "	rating REAL, "
+    echo "	user_comment TEXT);"
+}
+
+tangogps_purge() {
+    if [ ! -s $SQLDB ]; then
+	tangogps_create
+    fi
+    delcmd="delete from poi"
+    #echo "use $SQLDB;"
+    echo "$delcmd where keywords like '%$SQLTAG%';"
+}
+
+#
+#	tangogps_add <file waypoint_type
+#
+tangogps_add() {
+    if [ ! -s $SQLDB ]; then
+	tangogps_create
+    fi
+    echo "PRAGMA synchronous=OFF;"
+    delcmd="delete from poi"
+    addcmd="insert into poi (idmd5,lat,lon,visibility,cat,subcat,keywords,desc,price_range,extended_open)"
+    addcmd="replace into poi (idmd5,lat,lon,visibility,cat,subcat,keywords,desc,price_range,extended_open)"
+    sqltag="$1"
+
+    cat=`hash_find cap $sqltag`
+    subcat_trad=`hash_find subcap "Traditional Cache"`
+
+    #echo "use $SQLDB;"
+    OIFS="$IFS"
+    IFS="|"
+    #while read name lat lon type extra
+    egrep -v -- "$EXCLUDE" \
+	| tr -d "|" | tr '	' '|' | tr -d "'" |
+    while read index shortname description notes url urltext icon lat lon \
+        lat32 lon32 latdecdir londecdir latdirdec londirdec latdir londir \
+        altfeet altmeters excel timet diff terr container type \
+	pathmiles pathkm placer yyyymmmdd hint lastfound extra
+    do
+	if [ "$placer" = "$USERNAME" ]; then
+	    continue
+	fi
+	if [ "$placer" = "dyl1231" ]; then
+	    continue
+	fi
+
+	#name=`echo "$description" | tr -d "'"`
+	#For Performance...
+	name=${description//\'/}
+
+	# Primary key is autoincrementing id number, so delete
+	# the old record (if any) by name and type
+	if [ $PURGE = 0 ]; then
+	    echo "$delcmd where idmd5='$name' and keywords like '%$SQLTAG%';"
+	fi
+
+	if [ $DELETE = 0 ]; then
+	    # Add the new record
+	    if [ "$sqltag" = "Geocache" ]; then
+		tag="$type"
+	    else
+		tag="$sqltag"
+	    fi
+
+	    if [ "Traditional Cache" = "$tag" ]; then
+		# For performance...
+		subcat=$subcat_trad
+	    else
+		subcat=`hash_find subcap $tag`
+	    fi
+	    printf "$addcmd values ('%s','$lat','$lon','0.0'," "$name"
+	    printf "'$cat','$subcat','%s / $tag / $icon'," "$name"
+	    echo "'$type $container $diff/$terr. Last Found: $lastfound.  $hint','3.0','0.0');"
+	fi
+    done
+    IFS="$OIFS"
+}
+
+tangogps_sqlite3() {
+    if [ "$OUTFILE" != "" ]; then
+	cat >> $OUTFILE
+    elif [ $DEBUG -gt 0 ]; then
+	cat
+    else
+	#mysql -u$SQLUSER -p$SQLPASS
+	sqlite3 $SQLDB
+    fi
+}
+
+#
+# Extended list of gpsbabel output formats
+#
+gpsbabel_formats() {
+    gpsbabel -? | sed -e '1,/File Types/d' -e '/Supported data filters/,$d'
+    echo	"	tangogps.sql         " \
+	    "GpsDrive direct sqlite3 database insertion"
+    echo	"	map[,geo-map-opts]   " \
+	    "Display map of waypoints using geo-map"
+}
+
+##############################################################################
+# end #include "geo-common-tangogps"
+##############################################################################

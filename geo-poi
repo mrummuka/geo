@@ -1,0 +1,393 @@
+#!/bin/bash
+
+PROGNAME="$0"
+WEBHOME="http://geo.rkkda.com/"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Lookup places in Place Guide or POI Factory files
+
+SYNOPSIS
+    `basename $PROGNAME` [options] pg.pdb ...
+
+    `basename $PROGNAME` [options] lat lon
+
+    `basename $PROGNAME` [options] last
+
+    `basename $PROGNAME` [options] place.csv ...
+
+DESCRIPTION
+    `basename $PROGNAME` [options] pg.pdb ...
+
+	Lookup place locations in Mapopolis in pg.pdb Place Guide files,
+	and format them for output in any of the output file types that
+	gpsbabel supports, or directly import them into the GpsDrive
+	MySQL waypoint database.
+
+    `basename $PROGNAME` [options] lat lon
+
+	Like the above, except derive the implied list of searched PDB files
+	by consulting an index of placeguide PDB files in $HOME/.geopoi.
+	A PDB index can be produced with a command like this:
+
+	    for i in */*.pdb; do pgpdb2txt -r \`pwd\`/\$i; done > ~/.geopoi
+
+    `basename $PROGNAME` [options] last
+
+	Like the above, except determine the current lat/lon from GpsDrive's
+	lastlong/lastlat values in the \$HOME/.gpsdrive/gpsdriverc file.
+
+    `basename $PROGNAME` [options] places.csv ...
+
+	Lookup place locations in POI Factory places.csv files, and
+	format them for output in any of the output file types that
+	gpsbabel supports, or directly import them into the GpsDrive
+	MySQL waypoint database.
+
+    Requires:
+	curl		http://curl.haxx.se/
+	gpsbabel	http://gpsbabel.sourceforge.net
+
+OPTIONS
+	-c category	Select category [*]
+			Can use shell-style * globbing to match the category
+	-n name		Select name [*]
+			Can use shell-style * globbing to match the name
+	-l		List available categories in .pdb files and exit
+			With -c, list raw records in category and exit
+	-t type         The waypoint type to output [<category-in-pdb-file>]
+	-o format	Output format, -o? for possibilities [$OUTFMT]
+			plus "gpsdrive.sql" for direct insertion into MySQL DB
+			plus "txt" for raw text records
+	-o mindec	Output lat/lon in MinDec (44.56.123) mode.
+	-S              Alias for -o gpsdrive.sql
+        -d              For -S, just delete selected records\n"
+	-r radius	Radius value for implied list of PDB files [$RADIUS]
+	-D lvl		Debug level
+	-U              Retrieve latest version of this script
+
+EXAMPLES
+	geo-poi -cHotels FredericksburgCityVA-PG.pdb
+
+	geo-poi -cRest* -t Restaurant FredericksburgCityVA-PG.pdb
+
+	geo-poi -S -c Dunn ~/poi/Dunn_Brothers_Coffee.csv
+
+SEE ALSO
+	geo-code, geo-waypoint, geo-nearest,
+	$WEBHOME
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+#
+#       Set default options, can be overriden on command line or in rc file
+#
+CAT=*
+NAME=*
+OUTFMT=txt
+SQLUSER=gast	# For -o gpsdrive.sql
+SQLPASS=gast	# For -o gpsdrive.sql
+SQLDB=geoinfo	# For -o gpsdrive.sql
+UPDATEpoiURL=$WEBHOME/geo-poi
+UPDATEpoiFILE=geo-poi.new
+UPDATEpgpdbURL=$WEBHOME/pgpdb2txt.c
+UPDATEpgpdbFILE=pgpdb2txt.c.new
+GPSDRIVERC=$HOME/.gpsdrive/gpsdriverc
+RADIUS=5
+
+#
+#       Read RC file, if there is one
+#
+if [ -f $HOME/.georc ]; then
+	. $HOME/.georc
+	# N.B. must switch to read_rc_file if LAT/LON is ever needed here
+fi
+
+#
+#       Process the options
+#
+DEBUG=0
+TYPE=
+QUIET=-q
+MODE=babel
+PGOPTS=
+DELETE=
+while getopts "c:dln:o:t:s:r:SD:Uh?" opt
+do
+	case $opt in
+	c)      CAT="$OPTARG";;
+	d)      DELETE="-d";;
+	l)	MODE=list; OUTFMT=;;
+	n)      NAME="$OPTARG";;
+	o)      if [ "$OPTARG" = mindec ]; then
+		    PGOPTS=-omindec;
+		    break;
+		fi
+		OUTFMT="$OPTARG";;
+	S)      OUTFMT="gpsdrive.sql"; QUIET=;;
+	t)      TYPE="$OPTARG";;
+	r)	RADIUS="$OPTARG"
+		;;
+	D)	DEBUG="$OPTARG";;
+	U)	echo "Getting latest version of this script and C code..."
+		curl $CURL_OPTS -o$UPDATEpoiFILE --url "$UPDATEpoiURL" \
+			-o$UPDATEpgpdbFILE --url "$UPDATEpgpdbURL"
+		chmod +x $UPDATEpoiFILE
+		echo "Latest version is in $UPDATEpoiFILE and $UPDATEpgpdbFILE"
+		;;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+PGOPTS="$PGOPTS $DELETE"
+
+case "$OUTFMT" in
+txt)
+	MODE=txt
+	;;
+gpsdrive)
+	BABELFLAGS=-s
+	;;
+gpsdrive.sql)
+	BABELFLAGS=-s
+	OUTFMT=gpsdrive
+	MODE=sql
+	# DEBUG=1
+	;;
+\?)
+	gpsbabel -? | sed '1,/File Types/d'
+	echo	"	gpsdrive.sql         " \
+		"GpsDrive direct MySQL database insertion"
+	echo	"	txt                  " \
+		"Raw text records from .pdb files"
+	exit
+	;;
+esac
+
+#
+#	procedure to make a gpsbabel style file
+#
+make_istyle() {
+	cat <<EOF
+FIELD_DELIMITER		COMMA
+RECORD_DELIMITER	NEWLINE
+BADCHARS		COMMA
+IFIELD	LON_DECIMAL, "", "%.6f"
+IFIELD	LAT_DECIMAL, "", "%.6f"
+IFIELD	DESCRIPTION, "", "%s"
+IFIELD	ICON_DESCR, "", "%s"
+EOF
+}
+
+#
+#	procedure to remove cruft files
+#
+remove_cruft() {
+	for i in $STYLE $COORDS $OUTWAY $TMPFILE
+	do
+		[ -f $i ] && rm -f $i
+	done
+}
+
+# Convert DegDec, MinDec, or DMS lat/lon to DegDec
+latlon() {
+    # Handle NSEW prefixes
+    arg1=`echo "$1" | sed -e 's/^[nNeE]//' -e 's/^[wW]/-/' -e 's/^[sS]/-/'`
+    # If negative, print the sign then take the absolute value
+    case "$arg1" in
+    -*)	printf "-"; arg1=`echo "$arg1" | sed 's/^-//'`;;
+    esac
+    # Now handle the 3 different formats
+    case $# in
+    1)	
+	case "$arg1" in
+	*.*.*)	echo "$arg1" \
+		| sed -e 's#\([^.]*\)\.#\1 #' -e 's#$# 6k 60/+p#' | dc
+		;;
+	*)	echo $arg1
+		;;
+	esac
+	;;
+    2)	echo "6k $arg1 $2 60/+p" | dc;;
+    3)	echo "6k $arg1 $2 60/ $3 3600/++p" | dc;;
+    esac
+}
+
+#
+#	Main Program
+#
+TMP=/tmp/geo$$
+STYLE=${TMP}.style
+TMPFILE=${TMP}.tmp
+COORDS=${TMP}.coords
+OUTWAY=${TMP}.way
+
+PDBFILES="$*"
+
+make_istyle > yyy
+make_istyle > $STYLE
+csv2txt () {
+	gpsbabel -i xcsv,style=$STYLE -f - -otabsep  -F - | tr '	' '|' |
+	    sed 's/"//g' > $TMPFILE
+	OIFS="$IFS"
+	IFS="|"
+	while read index shortname desc notes url urllink icondescr lat lon x
+	do
+	    sn=`echo "$shortname" \
+		| sed -e "s/ //g" -e "s/'//g" -e "s/(/</g" -e "s/)/>/g" `
+	    dsn=`expr substr "$sn" 1 40 `
+	    case "$MODE" in
+	    sql)
+		echo "delete from waypoints where name REGEXP '$dsn.*'" \
+		    "and type='$CAT'" \
+		    "and lat='$lat' and lon='$lon';"
+		if [ "$DELETE" = "" ]; then
+		    echo "insert into waypoints (name,lat,lon,type,comment)" \
+		    "values('$sn', '$lat', '$lon', '$CAT', '$sn, $icondescr');"
+		fi
+		;;
+	    babel)
+		echo "$sn $lat $lon $CAT"
+		;;
+	    *)
+		echo "Not implemented"
+		;;
+	    esac
+	done <$TMPFILE
+	IFS="$OIFS"
+}
+
+#
+#	If there are two command line arguments that aren't
+#	the names of PDB files, and there is a directory of
+#	PDB files in $HOME/.geopoi, then treat the two command
+#	line arguments as lat/lon, and derive an implied list
+#	of PDB files to search by consulting the .geopoi directory
+#
+pdbfiles_byll() {
+    RADIUSM=`awk -v "N=$RADIUS" 'BEGIN{printf "%d\n", N}'`
+    case "$RADIUS" in
+    *km*|*KM*)	((RADIUSM*=1000));;
+    *)		((RADIUSM*=1609));;
+    esac
+
+    awk -v DEBUG=$DEBUG -v LAT=$1 -v LON=$2 -v RADIUSM="$RADIUSM" '
+    BEGIN {
+	# Should do a real radius or rect here
+	# For now, just fudge by distance around Minneapolis
+	LATFUDGE = 0.000008998 * RADIUSM
+	LONFUDGE = 0.000012682 * RADIUSM
+    }
+    {
+	LAT += 0.0; LON += 0.0
+	ll_lat = $2 - LATFUDGE
+	ll_lon = $3 - LONFUDGE
+	ur_lat = $4 + LATFUDGE
+	ur_lon = $5 + LONFUDGE
+	
+	if (LAT >= ll_lat && LAT <= ur_lat &&
+	    LON >= ll_lon && LON <= ur_lon)
+	{
+	    print $1
+	    if (DEBUG >= 2)
+	    {
+		print "	", ll_lat, $2, LAT, $4, ur_lat
+		print "	", ll_lon, $3, LON, $5, ur_lon
+	    }
+	}
+    }
+    ' < $HOME/.geopoi
+}
+
+if [ $# = 2 -a -s $HOME/.geopoi -a ! -f "$1" -a ! -f "$2" ]; then
+    LAT=`latlon $1`
+    LON=`latlon $2`
+    PDBFILES=`pdbfiles_byll "$LAT" "$LON"`
+    if [ $DEBUG -ge 1 ]; then
+	echo -e "Radius $RADIUS implies:\n$PDBFILES" >&2
+	exit
+    fi
+elif [ $# = 1 -a -s $HOME/.geopoi -a -s $GPSDRIVERC -a "$1" = last ]; then
+    LAT=`grep "lastlat = " $GPSDRIVERC | sed 's/.*= //' `
+    LON=`grep "lastlong = " $GPSDRIVERC | sed 's/.*= //' `
+    PDBFILES=`pdbfiles_byll "$LAT" "$LON"`
+    if [ $DEBUG -ge 1 ]; then
+	echo -e "Radius $RADIUS implies:\n$PDBFILES" >&2
+	exit
+    fi
+fi
+
+case "$MODE" in
+txt)
+	for i in $PDBFILES
+	do
+		pgpdb2txt $PGOPTS -t "$TYPE" -c "$CAT" -n "$NAME" $i
+	done
+	;;
+list)
+	if [ "$CAT" != "*" -o "$NAME" != "*" ]; then
+		# List raw records with filter
+		for i in $PDBFILES
+		do
+			pgpdb2txt $PGOPTS -t "$TYPE" -c "$CAT" -n "$NAME" -F0 $i
+		done
+	else
+		# List categories, with records counts
+		for i in $PDBFILES
+		do
+			pgpdb2txt $PGOPTS $i
+		done | awk -F '|' '
+		{
+			++count[$1];
+		}
+		END {
+			for (cat in count)
+			{
+				printf("%7d	%s\n", count[cat], cat);
+			}
+		}
+		' | sort -k2
+	fi
+	;;
+babel)
+	for i in $PDBFILES
+	do
+	    case $i in
+	    *.csv)
+		csv2txt <$i
+		;;
+	    *)
+		pgpdb2txt $PGOPTS -t "$TYPE" -c "$CAT" -n "$NAME" -F3 $i
+		;;
+	    esac
+	done
+	;;
+sql)
+	(
+	    echo "use $SQLDB;"
+	    for i in $PDBFILES
+	    do
+		case $i in
+		*.csv)
+		    csv2txt <$i
+		    ;;
+		*)
+		    pgpdb2txt $PGOPTS -t "$TYPE" -c "$CAT" -n "$NAME" -F4 $i
+		    ;;
+		esac
+	    done
+	) | mysql -u$SQLUSER -p$SQLPASS
+	;;
+esac

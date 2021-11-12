@@ -1,0 +1,103 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert Wherigo ZonePoint's to geo-map coords
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file]
+
+DESCRIPTION
+    Convert Wherigo ZonePoint's to geo-map coords. Reads from stdin or file.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert:
+
+        $ wherigo2lua historic_mackinaw.gwc >xxx
+        $ geo-map -s0 -c \$(zonepoint2map xxx)
+
+SEE ALSO
+    reverse-wherigo, urwigo-decode, wherigo2lua
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+FILE=$1
+
+#
+#	Main Program
+#
+awk '
+/OriginalPoint / && /ZonePoint/ {
+    name = $0
+    sub(".OriginalPoint.*", "", name)
+    gsub(" ", "", name)
+    str = $0
+    sub(".*ZonePoint[(]", "", str)
+    sub(", 0.*", "", str)
+    sub(",", "", str)
+    print str, "OP-" name, "dot,blue"
+    next
+}
+/ObjectLocation = Zone/ {
+    name = $0
+    sub(".ObjectLocation.*", "", name)
+    gsub(" ", "", name)
+    str = $0
+    sub(".*ZonePoint[(]", "", str)
+    sub(", 0.*", "", str)
+    sub(", 360.*", "", str)
+    sub(",", "", str)
+    if (str == "-81 -81") next
+    print str, name, "dot,yellow"
+    next
+}
+/\.Points/ {
+    name = $0
+    sub("[.]Points.*", "", name)
+    gsub(" ", "", name)
+}
+/^[ 	]*ZonePoint\(/ {
+    str = $0
+    sub(".*ZonePoint[(]", "", str)
+    sub(", 0.*", "", str)
+    sub(",", "", str)
+    if (name == "")
+	print str, "start", "dot,green"
+    else
+	print str, name, "dot,red"
+}' $FILE

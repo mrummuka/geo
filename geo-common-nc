@@ -1,0 +1,337 @@
+##############################################################################
+# begin #include "geo-common-nc"
+##############################################################################
+
+#
+#	Common global constants
+#
+UA="Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)"
+NAVI="http://www.navicache.com"
+
+#
+#	Global variables that can be overridden on command line or rc file
+#
+PASSWORD=dummy
+USERNAME=dummy
+LAT=44.9472
+LON=-93.4914
+CURL_OPTS=
+
+#
+#	Global variables
+#
+FOUND=1
+USERFOUND=1
+BABELFLAGS=
+RADIUS=
+OUTFILE=
+OUTFMT=gpsdrive
+NUM=20
+INCLUDE=*
+EXCLUDE='-unavail'
+VARTIME=found
+GEOSLEEP=${GEOSLEEP:-5}
+SINCE=
+
+#
+#	Common options handling
+#
+nc_usage() {
+	cat <<EOF
+Options:
+	-f              Do not report any found or unavailable caches
+	-F		Report caches found by the login 'username' as unfound
+	-T datespec	Return caches placed or modified since 'datespec',
+			which can be any date accepted by the date(1) command.
+	-n num		Return "num" caches [$NUM]
+	-s		Output short names for the caches (gpsbabel option)
+	-I term		Include only caches with 'term' [$INCLUDE]
+	-X term		Exclude caches with 'term' [$EXCLUDE].
+			Terms: unfound, ifound, unavail,
+			regular, multi, virtual, webcam, event, hybrid, moving
+	-r radius	Display only caches with radius (e.g. -r 25M)
+
+	-u username	Username for http://www.navicache.com
+	-p password	Password for http://www.navicache.com
+	-o format	Output format, -o? for possibilities [$OUTFMT].
+			Plus "gpsdrive.sql" for direct insertion into MySQL DB.
+			Plus "map[,geo-map-opts]" to display a geo-map.
+	-O filename	Output file, if not stdout
+	-S              Alias for -o gpsdrive.sql
+        -d              For -S, just delete selected records
+        -P              For -S, purge all records of type -t $SQLTAG*
+	-t type		For -ogpsdrive.sql, the waypoint type [$SQLTAG]
+	-H htmldir	Also fetch the printable HTML pages (slowly)
+	-L logdir	Also fetch the plain text log entries (slowly)
+	-D lvl		Debug level [$DEBUG]
+	-U		Retrieve latest version of this script
+
+Defaults can also be set with variables in file \$HOME/.georc:
+
+	PASSWORD=password;  USERNAME=username;
+	LAT=latitude;       LON=logitude;
+	NUM=num;            OUTFMT=format;       BABELFLAGS=-s;
+	SQLUSER=gast;       SQLPASS=gast;        SQLDB=geoinfo;
+EOF
+}
+
+nc_getopts() {
+    #
+    # Defaults for options that cannot be overriden in the RC file
+    #
+    PURGE=0
+    DELETE=0
+    SQL=0
+    MAP=0
+    HTMLDIR=
+    LOGDIR=
+
+    while getopts "H:L:I:X:dfFn:o:O:p:Pr:sSt:T:u:D:Uh?-" opt
+    do
+	case $opt in
+	d)	DELETE=1;;
+	f)	FOUND=0; EXCLUDE="$EXCLUDE|-ifound";;
+	I)
+		if [ "$INCLUDE" = "*" ]; then
+		    INCLUDE=
+		else
+		    INCLUDE="$INCLUDE|"
+		fi
+		INCLUDE="$INCLUDE-$OPTARG"
+		;;
+	X)
+		EXCLUDE="$EXCLUDE|-$OPTARG"
+		;;
+	F)	USERFOUND=0;;
+	P)	PURGE=1;;
+	n)	NUM="$OPTARG";;
+	T)	SINCE="$OPTARG";;
+	r)	RADIUS="$OPTARG"
+		RADIUS_NUM=`awk -v "N=$RADIUS" 'BEGIN{printf "%d\n", N}'`
+		case "$RADIUS" in
+		*km*|*KM*)	RADIUS_UNITS=km;;
+		*)		RADIUS_UNITS=mi;;
+		esac
+		;;
+	s)	BABELFLAGS="$BABELFLAGS -s";;
+	S)      OUTFMT="gpsdrive.sql";;
+	t)	SQLTAG="$OPTARG";;
+	u)	USERNAME="$OPTARG";;
+	p)	PASSWORD="$OPTARG";;
+	o)	OUTFMT="$OPTARG";;
+	O)	OUTFILE="$OPTARG";;
+	H)	HTMLDIR="$OPTARG";;
+	L)	LOGDIR="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	U)	echo "Getting latest version of this script..."
+		curl $CURL_OPTS -o$UPDATE_FILE "$UPDATE_URL"
+		chmod +x "$UPDATE_FILE"
+		echo "Latest version is in $UPDATE_FILE"
+		exit
+		;;
+	h|\?|-)	usage;;
+	esac
+    done
+    
+    shiftamt=`expr $OPTIND - 1`
+    shift $shiftamt
+
+    case "$OUTFMT" in
+    map)
+	OUTFMT=tiger,newmarker=grnpin,iconismarker
+	MAP=1
+	;;
+    map,*)
+	MAPOPTS=`echo "$OUTFMT" | sed -n 's/map,\(.*\)$/\1/p'`
+	OUTFMT=tiger,newmarker=grnpin,iconismarker
+	MAP=1
+	;;
+
+    gpsdrive.sql)
+	OUTFMT=gpsdrive
+	SQL=1
+	# DEBUG=1
+	;;
+    \?)
+	gpsbabel_formats
+	exit
+	;;
+    esac
+
+    LOGUSERNAME="$USERNAME"
+    return $shiftamt
+}
+
+nc_query() {
+    #	The supported arguments are:
+    #	  city=
+    #	  state=
+    #	  country=
+    #	  difficulty=
+    #	  terrain=
+    #	  NewOrModifiedSince=YYYY-MM-DD HH:MM:SS
+    #	  AllCacheData=0 or 1 (default=0)
+    #	  logs=0 or 1 (default=0)
+    #	  LogsOnly=0 or 1 (default=0)
+    #	  LogStats=0 or 1 (default=0)
+    #	  LogStatsOnly=0 or 1 (default=0)
+    #	  gzip=0 or 1 (default=0)
+    #
+    #	format for the DATE attribute is 'YYYY-MM-DD'
+    #	format for the DATE_TIME attribute is 'YYYY-MM-DD HH:MM:SS'
+    #	latitude and longitude are in hours (WGS-84 datum)
+
+    NC="http://www.navicache.com/cgi-bin/db/XMLSearchResults.pl"
+
+    # Attempt to speed up search
+    if [ "$SINCE" != "" ]; then
+	DATE=`$date -d "$SINCE" +"%Y-%m-%d"`
+    elif [ $NUM -le 40 ]; then
+	DATE=`$date -d "10 year ago" +"%Y-%m-%d"`
+    else
+	DATE=`$date -d "10 years ago" +"%Y-%m-%d"`
+    fi
+
+    if [ "$STATE" != "" ]; then
+	SEARCH="state=$STATE&NewOrModifiedSince=$DATE"
+    else
+	SEARCH="country=$COUNTRY&NewOrModifiedSince=$DATE"
+    fi
+
+    if [ $DEBUG -gt 0 ]; then
+	TMP=/tmp/geo
+    else
+	TMP=/tmp/geo$$
+    fi
+
+    OUTWAY=$TMP.way
+    CDFILE=$TMP.cd
+    TSFILE=$TMP.ts
+    BABELFILE=$TMP.babel
+
+    CRUFT="$CRUFT $OUTWAY"
+    CRUFT="$CRUFT $CDFILE"
+    CRUFT="$CRUFT $TSFILE"
+    CRUFT="$CRUFT $BABELFILE"
+
+    # fetch nc.com "cache_data"
+    # dbgcmd curl -s -A "$UA" "$NC?$SEARCH&gzip=1" \
+    # | gunzip > $CDFILE
+    dbgcmd curl $CURL_OPTS -s -A "$UA" "$NC?$SEARCH" > $CDFILE
+
+    if grep -q "The File or page located at" $CDFILE; then
+        error "Sorry, the file you were looking for could not be found."
+    fi
+
+    if [ $FOUND = 0 ]; then
+        FINDER=$USERNAME
+        PLACER=$USERNAME
+    else
+        FINDER=
+        PLACER="<noplacer>"
+    fi
+
+    # Convert to tabsep format, sort it by nearest first, and trim output
+    # to the number of requested caches.
+    LAT=`latlon $LAT`
+    LON=`latlon $LON`
+
+    case "$CMD" in
+    nearest)
+	# lat=$8 lon=$9, both 0 is a poor mans way to archive it
+	gpsbabel -i navicache,noretired -f $CDFILE \
+	    -x radius,distance=5000M,lat=$LAT,lon=$LON \
+	    -otabsep -F- \
+	| awk -F'	' '$8 == 0 && $9 == 0 { next } { print } ' \
+	| awk -F'	' -v PLACER="$PLACER" \
+	    '$28 ~ PLACER { next } { print } ' \
+	> $BABELFILE
+	;;
+    newest)
+	# lat=$8 lon=$9, both 0 is a poor mans way to archive it
+	gpsbabel -i navicache,noretired -f $CDFILE \
+	    -otabsep -F- \
+	| awk -F'	' '$8 == 0 && $9 == 0 { next } { print } ' \
+	| awk -F'	' -v PLACER="$PLACER" \
+	    '$28 ~ PLACER { next } { print } ' \
+	| sort -t '	' -r -n -k21 > $BABELFILE
+	;;
+    *)
+	error "CMD is not equal to nearest or newest!"
+	;;
+    esac
+
+    head -n$NUM < $BABELFILE \
+    | awk -F'	' \
+	-v "DATE=$date" \
+    '
+    BEGIN {
+	cmd = sprintf("%s -d \"%d days ago\" +%%s", DATE, 2)
+	cmd | getline UNTIME; close(cmd)
+    }
+    {
+	time=$21
+	line=$0
+	if (time >= UNTIME)
+	    sub("Geocache-", "Geocache-unfound-", line)
+	print line
+    }
+    ' > $TSFILE
+
+    if [ -s "$TSFILE" ]; then
+	#
+	# Convert to the desired format
+	#
+	BABELFILT=
+	if [ "$RADIUS" != "" ]; then
+	    BABELFILT="-x radius,distance=$RADIUS,lat=$LAT,lon=$LON"
+	fi
+
+	if [ $SQL = 1 ]; then
+		#
+		# add it via mysql
+		#
+		if [ "$OUTFILE" != "" ]; then
+		    >"$OUTFILE"
+		fi
+
+		if [ $PURGE = 1 ]; then
+		    gpsdrive_purge | gpsdrive_mysql
+		    PURGE=2
+		fi
+
+		dbgcmd gpsbabel $BABELFLAGS \
+		    -i tabsep -f $TSFILE \
+		    $BABELFILT -o "$OUTFMT" -F $OUTWAY
+		gpsdrive_add <$OUTWAY $SQLTAG | gpsdrive_mysql
+	elif [ $MAP = 1 ]; then
+		dbgcmd gpsbabel $BABELFLAGS \
+		    -i tabsep -f $TSFILE \
+		    $BABELFILT -o "$OUTFMT" -F $OUTWAY
+		if [ "$OUTFILE" = "" ]; then
+		    dbgcmd geo-map -s0 $MAPOPTS -t$OUTWAY
+		else
+		    dbgcmd geo-map -s0 $MAPOPTS -t$OUTWAY -o"$OUTFILE"
+		fi
+	else
+		#
+		# output to stdout or to a file
+		#
+		if [ "$OUTFILE" = "" ]; then
+		    OUTTMP="$TMP.way";  CRUFT="$CRUFT $OUTTMP"
+		    dbgcmd gpsbabel $BABELFLAGS \
+			-i tabsep -f $TSFILE \
+			$BABELFILT -o "$OUTFMT" -F $OUTTMP
+		    cat $OUTTMP
+		else
+		    dbgcmd gpsbabel $BABELFLAGS \
+			-i tabsep -f $TSFILE \
+			$BABELFILT -o "$OUTFMT" -F $OUTFILE
+		fi
+	fi
+    fi
+}
+
+##############################################################################
+# end #include "geo-common-nc"
+##############################################################################

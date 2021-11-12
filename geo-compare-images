@@ -1,0 +1,104 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Compare two images
+
+SYNOPSIS
+    `basename $PROGNAME` [options] image1 image2
+
+DESCRIPTION
+    Compare two images using difference and then divide. Display
+    with 'xv', 'display', 'eog', 'Preview' (Mac OS) or 'mspaint.exe' (cygwin).
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Compare:
+
+	$ geo-compare-images xxx.bmp yyy.png
+
+SEE ALSO
+    ImageMagick, xv
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+view() {
+    map="$1"
+    if which mspaint.exe 2>/dev/null; then
+        # Running under CygWin...
+        mspaint `cygpath -w $map`
+    elif which xv >/dev/null 2>&1; then
+        xv $map
+    elif [ `uname` = "Darwin" ]; then
+        open -a /Applications/Preview.app/ $map
+    elif which eog >/dev/null 2>&1; then
+        debug 0 "You need to install 'xv', the best image viewer for Unix/Linux"
+        eog $map
+    elif which display >/dev/null 2>&1; then
+        debug 0 "You need to install 'xv', the best image viewer for Unix/Linux"
+        display $map
+    else
+        DEBUG=1
+        debug 1 "You need to install 'xv', the best image viewer for Unix/Linux"
+        debug 1 "http://fr2.rpmfind.net/linux/rpm2html/search.php?query=xv"
+    fi
+}
+
+#
+#	Main Program
+#
+if [ $# -lt 2 ]; then
+    usage
+fi
+
+# compare $1 $2 /tmp/compare1.png
+# xv /tmp/compare1.png &
+size=`identify -format '%wx%h' "$1"`
+IMAGE1=/tmp/compare-image1.png
+IMAGE2=/tmp/compare-image2.png
+COMPARE1=/tmp/compare1.png
+COMPARE2=/tmp/compare2.png
+convert $1 -fuzz 2% -trim +repage -strip $IMAGE1
+convert $2 -fuzz 2% -trim +repage -strip $IMAGE2
+
+composite $IMAGE1 $IMAGE2 -resize $size -compose difference $COMPARE1
+convert $COMPARE1 -auto-level $COMPARE1
+view $COMPARE1 &
+
+composite $IMAGE1 $IMAGE2 -resize $size -compose divide $COMPARE2
+view $COMPARE2 &

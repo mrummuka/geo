@@ -1,0 +1,314 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - N-Segment Display to Text
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [display] ...
+
+DESCRIPTION
+    N-segment display to text from stdin or command line args.
+    The default is -14.
+
+OPTIONS
+    -7		7 segment display
+    -9		9 segment display
+    -14		14 segment display
+    -16		16 segment display, but the displays MUST be sorted
+    -D lvl	Debug level
+
+EXAMPLES
+    7 segment display from http://coord.info/GC1AGGD:
+
+	$ segment2text -7 DGFAC CB BCDEFA AGDBCEF FDECAB BCGF FAGCD
+	5108045
+
+    14 segment display from http://coord.info/GC5TFEZ:
+
+	$ segment2text -14
+	BCEFHK ABCDEF ABCDEF ABEFG1G2K ABCDIL
+	noord
+
+SEE ALSO
+    http://www.geocachingtoolbox.com/index.php?lang=en&page=segmentDisplay
+EOF
+
+	exit 1
+}
+
+awk=awk
+if [ `uname` = "Darwin" ]; then
+    awk=gawk
+    if ! which -s $awk; then
+	error "'$awk' not found.  Install it from http://rudix.org/packages/gawk.html"
+    fi
+fi
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+MODE=14
+while getopts "1:79D:h?" opt
+do
+	case $opt in
+	1)	MODE="1$OPTARG";;
+	7)	MODE="7";;
+	9)	MODE="9";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+one_word_per_line() {
+    tr -cs "[:alnum:]" "\n"
+}
+
+#
+# wordsort - Sort DCBA into ABCD
+#
+wordsort() {
+    $awk '
+    {
+	n = split($1, a, //)
+	asort(a)
+	s2 = ""
+	for (i=1; i<=n; i++) s2 = s2 a[i]
+	print s2
+    } '
+}
+
+#
+#	Main Program
+#
+display7() {
+    one_word_per_line | tr a-z A-Z | wordsort |
+    awk '
+    /^0$/ { printf " "; next }
+    /^-$/ { printf " "; next }
+    /^ABCDEF$/ { printf "0"; next }
+    /^BC$/ { printf "1"; next }
+    /^ABDEG$/ { printf "2"; next }
+    /^ABCDG$/ { printf "3"; next }
+    /^BCFG$/ { printf "4"; next }
+    /^ACDFG$/ { printf "5"; next }
+    /^ACDEFG$/ { printf "6"; next }
+    /^ABC$/ { printf "7"; next }
+    /^ABCDEFG$/ { printf "8"; next }
+    /^ABCDFG$/ { printf "9"; next }
+    /^ABCFG$/ { printf "9"; next }	# alternate
+    /^ABCEFG$/ { printf "A"; next }
+    /^CDEFG$/ { printf "b"; next }
+    /^ADEF$/ { printf "C"; next }
+    /^BCDEG$/ { printf "d"; next }
+    /^ADEFG$/ { printf "E"; next }
+    /^AEFG$/ { printf "F"; next }
+    /^ABCEF$/ { printf "n"; next }
+    $1 != "" { printf " <%s> ", $1 }
+    END { printf "\n" }
+    '
+}
+
+display9() {
+    one_word_per_line | tr a-z A-Z | wordsort |
+    awk '
+    /^0$/ { printf " "; next }
+    /^-$/ { printf " "; next }
+    /^ABCDEF$/ { printf "0"; next }
+    /^BCH$/ { printf "1"; next }
+    /^ABDEG$/ { printf "2"; next }
+    /^ACDGH$/ { printf "3"; next }
+    /^BCFG$/ { printf "4"; next }
+    /^ACDFG$/ { printf "5"; next }
+    /^ACDEFG$/ { printf "6"; next }
+    /^AHI$/ { printf "7"; next }
+    /^ABCDEFG$/ { printf "8"; next }
+    /^ABCDFG$/ { printf "9"; next }
+    /^ABCEFG$/ { printf "A"; next }
+    /^CDEFG$/ { printf "B"; next }
+    /^ADEF$/ { printf "C"; next }
+    /^BCDEG$/ { printf "D"; next }
+    /^ADEFG$/ { printf "E"; next }
+    /^AEFG$/ { printf "E"; next }
+    $1 != "" { printf " <%s> ", $1 }
+    END { printf "\n" }
+    '
+}
+
+display14() {
+    one_word_per_line | tr a-z A-Z | wordsort |
+    awk '
+    /^0$/ { printf " "; next }
+    /^-$/ { printf " "; next }
+    /^12ABCEFGG$/ { printf "a"; next }
+    /^2ABCDGIL$/ { printf "b"; next }
+    /^ADEF$/ { printf "c"; next }
+    /^ABCDIL$/ { printf "d"; next }
+    /^12ADEFGG$/ { printf "e"; next }
+    /^12AEFGG$/ { printf "f"; next }
+    /^2ACDEFG$/ { printf "g"; next }
+    /^12BCEFGG$/ { printf "h"; next }
+    /^ADIL$/ { printf "i"; next }
+    /^BCDE$/ { printf "j"; next }
+    /^1EFGJK$/ { printf "k"; next }
+    /^DEF$/ { printf "l"; next }
+    /^BCEFHJ$/ { printf "m"; next }
+    /^BCEFHK$/ { printf "n"; next }
+    /^ABCDEF$/ { printf "o"; next }
+    /^12ABEFGG$/ { printf "p"; next }
+    /^ABCDEFK$/ { printf "q"; next }
+    /^12ABEFGGK$/ { printf "r"; next }
+    /^2ACDGH$/ { printf "s"; next }
+    /^AIL$/ { printf "t"; next }
+    /^BCDEF$/ { printf "u"; next }
+    /^EFJM$/ { printf "v"; next }
+    /^BCEFKM$/ { printf "w"; next }
+    /^HJKM$/ { printf "x"; next }
+    /^HJL$/ { printf "y"; next }
+    /^ADJM$/ { printf "z"; next }
+    /^ABCDEF$/ { printf "0"; next }
+    /^ABCDEFJK$/ { printf "0"; next }
+    /^BCJ$/ { printf "1"; next }
+    /^12ABDEGG$/ { printf "2"; next }
+    /^2ABCDG$/ { printf "3"; next }
+    /^12BCFGG$/ { printf "4"; next }
+    /^12ACDFGG$/ { printf "5"; next }
+    /^12ACDEFGG$/ { printf "6"; next }
+    /^AJL$/ { printf "7"; next }
+    /^12ABCDEFGG$/ { printf "8"; next }
+    /^12ABCFGG$/ { printf "9"; next }
+    $1 != "" { printf " <%s> ", $1 }
+    END { printf "\n" }
+    '
+}
+
+display16() {
+    one_word_per_line | tr a-z A-Z |
+    awk '
+    /^0$/ { printf " "; next }
+    /^-$/ { printf " "; next }
+    /^A1A2BCEFG1G2$/ { printf "a"; next }
+    /^A1A2BCD2D1G2IL$/ { printf "b"; next }
+    /^A1A2BCD1D2G2IL$/ { printf "b"; next }
+    /^A1A2D2D1EF$/ { printf "c"; next }
+    /^A1A2D1D2EF$/ { printf "c"; next }
+    /^A1A2BCD2D1IL$/ { printf "d"; next }
+    /^A1A2BCD1D2IL$/ { printf "d"; next }
+    /^A1A2D2D1EFG1G2$/ { printf "e"; next }
+    /^A1A2D1D2EFG1G2$/ { printf "e"; next }
+    /^A1A2EFG1G2$/ { printf "f"; next }
+    /^A1A2CD2D1EFG2$/ { printf "g"; next }
+    /^A1A2CD1D2EFG2$/ { printf "g"; next }
+    /^BCEFG1G2$/ { printf "h"; next }
+    /^A1A2D2D1IL$/ { printf "i"; next }
+    /^A1A2D1D2IL$/ { printf "i"; next }
+    /^BCD2D1E$/ { printf "j"; next }
+    /^BCD1D2E$/ { printf "j"; next }
+    /^EFG1JK$/ { printf "k"; next }
+    /^D2D1EF$/ { printf "l"; next }
+    /^D1D2EF$/ { printf "l"; next }
+    /^BCEFHJ$/ { printf "m"; next }
+    /^BCEFHK$/ { printf "n"; next }
+    /^A1A2BCD2D1EF$/ { printf "o"; next }
+    /^A1A2BCD1D2EF$/ { printf "o"; next }
+    /^A1A2BEFG1G2$/ { printf "p"; next }
+    /^A1A2BCD2D1EFK$/ { printf "q"; next }
+    /^A1A2BCD1D2EFK$/ { printf "q"; next }
+    /^A1A2BEFG1G2K$/ { printf "r"; next }
+    /^A1A2CD2D1G2H$/ { printf "s"; next }
+    /^A1A2CD1D2G2H$/ { printf "s"; next }
+    /^A1A2IL$/ { printf "t"; next }
+    /^BCD2D1EF$/ { printf "u"; next }
+    /^BCD1D2EF$/ { printf "u"; next }
+    /^EFJM$/ { printf "v"; next }
+    /^BCEFKM$/ { printf "w"; next }
+    /^HJKM$/ { printf "x"; next }
+    /^HJL$/ { printf "y"; next }
+    /^A1A2D2D1JM$/ { printf "z"; next }
+    /^A1A2D1D2JM$/ { printf "z"; next }
+    /^A1A2BCD2D1EFJM$/ { printf "0"; next }
+    /^A1A2BCD1D2EFJM$/ { printf "0"; next }
+    /^BC$/ { printf "1"; next }
+    /^A1A2BD2D1EG1G2$/ { printf "2"; next }
+    /^A1A2BD1D2EG1G2$/ { printf "2"; next }
+    /^A1A2BCD2D1G1G2$/ { printf "3"; next }
+    /^A1A2BCD1D2G1G2$/ { printf "3"; next }
+    /^BCFG1G2$/ { printf "4"; next }
+    /^A1A2D2D1FG1K$/ { printf "5"; next }
+    /^A1A2D1D2FG1K$/ { printf "5"; next }
+    /^A1A2CD2D1EFG1G2$/ { printf "6"; next }
+    /^A1A2CD1D2EFG1G2$/ { printf "6"; next }
+    /^A1A2BC$/ { printf "7"; next }
+    /^A1A2BCD2D1EFG1G2$/ { printf "8"; next }
+    /^A1A2BCD1D2EFG1G2$/ { printf "8"; next }
+    /^A1A2BCD2D1FG1G2$/ { printf "9"; next }
+    /^A1A2BCD1D2FG1G2$/ { printf "9"; next }
+    /^G1G2$/ { printf "-"; next }
+    /^G1G2JM$/ { printf "+"; next }
+    /^G1G2HJKLMN$/ { printf "*"; next }
+    /^KN$/ { printf "/"; next }
+    /^J$/ { printf "'"'"'"; next }
+    /^BJ$/ { printf "\""; next }
+    /^H$/ { printf "`"; next }
+    /^D1D2$/ { printf "_"; next }
+    /^D2D1$/ { printf "_"; next }
+    /^IL$/ { printf "1"; next }	# another code reverse
+    /^A2D2G2IL$/ { printf "E"; next }	# another code reverse
+    /^EFG1L$/ { printf "h"; next }	# another code reverse
+    /^CD1G2L$/ { printf "o"; next }	# another code reverse
+    /^A2BIKL$/ { printf "R"; next }	# another code reverse
+    /^A1D1FG1L$/ { printf "S"; next }	# another code reverse
+    /^D2G1G2IL$/ { printf "t"; next }	# another code reverse
+    /^A1D1EFIL$/ { printf "0"; next }	# another code reverse
+    /^A2BCD2ILDP$/ { printf "0."; next }	# another code reverse
+    /^A1D1IM$/ { printf "2"; next }	# another code reverse
+    /^A1D1G1IL$/ { printf "3"; next }	# another code reverse
+    /^A2BCD2G2$/ { printf "3"; next }	# another code reverse
+    /^FG1IL$/ { printf "4"; next }	# another code reverse
+    /^BCG2I$/ { printf "4"; next }	# another code reverse
+    /^A2CD2G2IDP$/ { printf "5."; next }	# another code reverse
+    /^A1D1EFG1L$/ { printf "6"; next }	# another code reverse
+    /^A2BCD2G2IL$/ { printf "8"; next }	# another code reverse
+    /^A1D1EFG1IL$/ { printf "8"; next }	# another code reverse
+    $1 != "" { printf " <%s> ", $1 }
+    END { printf "\n" }
+    '
+}
+
+if [ $# = 0 ]; then
+    case "$MODE" in
+    7)	display7;;
+    9)	display9;;
+    14)	display14;;
+    16)	display16;;
+    *)	error "Illegal value for MODE";;
+    esac
+else
+    echo $* |
+    case "$MODE" in
+    7)	display7;;
+    9)	display9;;
+    14)	display14;;
+    16)	display16;;
+    *)	error "Illegal value for MODE";;
+    esac
+fi

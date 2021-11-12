@@ -1,0 +1,113 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Decrypt slash and pipe code
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [code]
+
+DESCRIPTION
+    Decrypt a language of slashes and pipes from stdin or command line.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Decode:
+
+	$ geo-slash-pipe '| |\ || |/ \ ||\ ||| \\ / |\\ //|| |\/ |\|'
+	abcdefghijklm
+
+	$ geo-slash-pipe '|/| ||/| |\|\ /\ \/ /| |// // ||\\ \/|| ||/ |||\ ||||'
+	nopqrstuvwxyz
+
+SEE ALSO
+    https://www.geocachingtoolbox.com/index.php?lang=en&page=codeTables&id=slashPipeCode
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+# language with slashes and pipes
+#
+doit() {
+    sed -e 's/   /ZspaceZ/g' | tr ' Z' '\n\n' |
+tee|
+    awk '
+    /^space$/ { printf " "; next }
+    /^\|$/ { printf "a"; next }
+    /^\|\\$/ { printf "b"; next }
+    /^\|\|$/ { printf "c"; next }
+    /^\|\/$/ { printf "d"; next }
+    /^\\$/ { printf "e"; next }
+    /^\|\|\\$/ { printf "f"; next }
+    /^\|\|\|$/ { printf "g"; next }
+    /^\\\\$/ { printf "h"; next }
+    /^\/$/ { printf "i"; next }
+    /^\|\\\\$/ { printf "j"; next }
+    /^\/\/\|\|$/ { printf "k"; next }
+    /^\|\\\/$/ { printf "l"; next }
+    /^\|\\\|$/ { printf "m"; next }
+    /^\|\/\|$/ { printf "n"; next }
+    /^\|\|\/\|$/ { printf "o"; next }
+    /^\|\\\|\\$/ { printf "p"; next }
+    /^\/\\$/ { printf "q"; next }
+    /^\\\/$/ { printf "r"; next }
+    /^\/\|$/ { printf "s"; next }
+    /^\|\/\/$/ { printf "t"; next }
+    /^\/\/$/ { printf "u"; next }
+    /^\|\|\\\\$/ { printf "v"; next }
+    /^\\\/\|\|$/ { printf "w"; next }
+    /^\|\|\/$/ { printf "x"; next }
+    /^\|\|\|\\$/ { printf "y"; next }
+    /^\|\|\|\|$/ { printf "z"; next }
+    {
+	if ($0 != "")
+	    print
+    }
+    END {
+	printf "\n"
+    }
+    '
+    }
+if [ $# = 0 ]; then
+    doit
+else
+    echo "$*" | doit
+fi

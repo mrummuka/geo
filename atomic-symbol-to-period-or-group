@@ -1,0 +1,228 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Atomic Symbol to Period or Group
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [symbol] ...
+
+DESCRIPTION
+    Atomic Symbol to a period (row) or a group (column). It will convert
+    from stdin or command line.
+    
+    You can use lowercase for the leading letter; it will convert it to
+    uppercase.
+
+OPTIONS
+    -p		Period (row)
+    -g		Group (column)
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert:
+
+	$ atomic-symbol-to-period-or-group -p H Be Na K
+	1 2 3 4
+
+	$ atomic-symbol-to-period-or-group -g v mo re hs
+	5 6 7 8
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+PG=
+while getopts "pgD:h?" opt
+do
+	case $opt in
+	g)	PG=g;;
+	p)	PG=p;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ "$PG" = "" ]; then
+    error "Need to specify -p (period) or -g (group)"
+fi
+
+one_word_per_line() {
+    tr -cs "[:alnum:]/" "\n"
+}
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    cmd=cat
+else
+    cmd="echo $*"
+fi
+$cmd |
+one_word_per_line |
+awk -v "PG=$PG" '
+BEGIN {
+    pg["H"] = 1.1
+    pg["He"] = 1.18
+    pg["Li"] = 2.1
+    pg["Be"] = 2.2
+    pg["B"] = 2.13
+    pg["C"] = 2.14
+    pg["N"] = 2.15
+    pg["O"] = 2.16
+    pg["F"] = 2.17
+    pg["Ne"] = 2.18
+    pg["Na"] = 3.1
+    pg["Mg"] = 3.2
+    pg["Al"] = 3.13
+    pg["Si"] = 3.14
+    pg["P"] = 3.15
+    pg["S"] = 3.16
+    pg["Cl"] = 3.17
+    pg["Ar"] = 3.18
+    pg["K"] = 4.1
+    pg["Ca"] = 4.2
+    pg["Sc"] = 4.3
+    pg["Ti"] = 4.4
+    pg["V"] = 4.5
+    pg["Cr"] = 4.6
+    pg["Mn"] = 4.7
+    pg["Fe"] = 4.8
+    pg["Co"] = 4.9
+    pg["Ni"] = 4.10
+    pg["Cu"] = 4.11
+    pg["Zn"] = 4.12
+    pg["Ga"] = 4.13
+    pg["Ge"] = 4.14
+    pg["As"] = 4.15
+    pg["Se"] = 4.16
+    pg["Br"] = 4.17
+    pg["Kr"] = 4.18
+    pg["Rb"] = 5.1
+    pg["Sr"] = 5.2
+    pg["Y"] = 5.3
+    pg["Zr"] = 5.4
+    pg["Nb"] = 5.5
+    pg["Mo"] = 5.6
+    pg["Tc"] = 5.7
+    pg["Ru"] = 5.8
+    pg["Rh"] = 5.9
+    pg["Pd"] = 5.10
+    pg["Ag"] = 5.11
+    pg["Cd"] = 5.12
+    pg["In"] = 5.13
+    pg["Sn"] = 5.14
+    pg["Sb"] = 5.15
+    pg["Te"] = 5.16
+    pg["I"] = 5.17
+    pg["Xe"] = 5.18
+    pg["Cs"] = 6.1
+    pg["Ba"] = 6.2
+    pg["La"] = 6.3
+    pg["Ce"] = 6.3
+    pg["Pr"] = 6.3
+    pg["Nd"] = 6.3
+    pg["Pm"] = 6.3
+    pg["Sm"] = 6.3
+    pg["Eu"] = 6.3
+    pg["Gd"] = 6.3
+    pg["Tb"] = 6.3
+    pg["Dy"] = 6.3
+    pg["Ho"] = 6.3
+    pg["Er"] = 6.3
+    pg["Tm"] = 6.3
+    pg["Yb"] = 6.3
+    pg["Lu"] = 6.3
+    pg["Hf"] = 6.4
+    pg["Ta"] = 6.5
+    pg["W"] = 6.6
+    pg["Re"] = 6.7
+    pg["Os"] = 6.8
+    pg["Ir"] = 6.9
+    pg["Pt"] = 6.10
+    pg["Au"] = 6.11
+    pg["Hg"] = 6.12
+    pg["Tl"] = 6.13
+    pg["Pb"] = 6.14
+    pg["Bi"] = 6.15
+    pg["Po"] = 6.16
+    pg["At"] = 6.17
+    pg["Rn"] = 6.18
+    pg["Fr"] = 7.1
+    pg["Ra"] = 7.2
+    pg["Ac"] = 7.3
+    pg["Th"] = 7.3
+    pg["Pa"] = 7.3
+    pg["U"] = 7.3
+    pg["Np"] = 7.3
+    pg["Pu"] = 7.3
+    pg["Am"] = 7.3
+    pg["Cm"] = 7.3
+    pg["Bk"] = 7.3
+    pg["Cf"] = 7.3
+    pg["Es"] = 7.3
+    pg["Fm"] = 7.3
+    pg["Md"] = 7.3
+    pg["No"] = 7.3
+    pg["Lr"] = 7.3
+    pg["Rf"] = 7.4
+    pg["Db"] = 7.5
+    pg["Sg"] = 7.6
+    pg["Bh"] = 7.7
+    pg["Hs"] = 7.8
+    pg["Mt"] = 7.9
+    pg["Ds"] = 7.10
+    pg["Rg"] = 7.11
+    pg["Cn"] = 7.12
+    pg["Uut"] = 7.13
+    pg["Nh"] = 7.13
+    pg["Fl"] = 7.14
+    pg["Uup"] = 7.15
+    pg["Mc"] = 7.15
+    pg["Lv"] = 7.16
+    pg["Uus"] = 7.17
+    pg["Ts"] = 7.17
+    pg["Uuo"] = 7.18
+    pg["Og"] = 7.18
+}
+{
+    text = toupper(substr($1, 1, 1)) substr($1, 2)
+
+    rc = pg[text]
+    if (rc != 0 && PG == "p")
+    {
+	printf "%d ", int(rc)
+    }
+    else if (rc != 0 && PG == "g")
+    {
+	sub("[^.]*.", "", rc)
+	printf "%d ", rc
+    }
+    else
+	printf "<%s> ", text
+}
+END { printf "\n" }
+'

@@ -1,0 +1,183 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Radio Orphan Annie’s Decoder Ring.
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    The decrypted/encrypted text is from stdin.
+
+OPTIONS
+    -c OI	Set the outer (A-Z) and inner (1-26) [$OI]
+    -y year	Set the year [$YEAR]
+
+		1935	Orphan Annie
+		1936	Orphan Annie
+		1937	Orphan Annie
+		1940	Orphan Annie
+		1941	Captain Midnight
+		1942	Captain Midnight
+		1945	Captain Midnight
+		1946	Captain Midnight
+		1947	Captain Midnight
+		1955	Captain Midnight numbers 26-1
+		2000	Ovaltine
+    -D lvl	Debug level
+
+EXAMPLE
+    Encrypt the text from https://coord.info/GC7AMPK :
+
+	$ echo TMUTTHU | radio-orphan-annie -c a7
+	3 8 5 3 3 1 5 
+
+    Decrypt the text from https://coord.info/GC7AMPK :
+
+	$ echo 3 8 5 3 3 1 5 | radio-orphan-annie -c a7
+	TMUTTHU 
+
+    Decrypt the phrase from "A Christmas Story":
+
+	$ radio-orphan-annie -c b12 -y 1940
+	12 11 2 3 25 11 4 24 16 25 18 23 21 6 24 3 25 24 5 9 19 4 18 23 11 
+	BESURETODRINKYOUROVALTINE
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+OI=A1
+YEAR=1935
+REV=0
+while getopts "c:y:D:h?" opt
+do
+	case $opt in
+	c)	OI="$OPTARG";;
+	y)	YEAR="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+case $YEAR in
+1935)	code=AMZNBLYOKCQXJDRWIESVHGTFUP;;
+1936)	code=AGTPBHMCSQDFZLNEVJYIWUROKX;;
+1937)	code=AOIPBNMDSQCFXEHLVJYTWURGKZ;;
+1940)	code=ACEBGHFDJILMKWNORPQSUTVYZX;;
+1941)	code=AXNQEGMKFWZHIOBLTDSRCJVUPY;;
+1942)	code=AEXDTZKNYCJWSGUMBOQHRIVFPL;;
+1945)	code=AFXDTZKNYCJWSGUMPOQHRIVEBL;;
+1946)	code=AGHTVQSEPYJIFLXKDCWRBONZMU;;
+1947)	code=ATMPQUOVFYBHJNCIXSDKRGWLEZ;;
+1955)	code=APZOYNXMWLVKUJTSFREQDICHBG; REV=1;;
+2000)	code=ASLWIMVHFKXDPOEJBTNQZGUYRC;;
+*)	error "No year!";;
+esac
+
+awk -v REV=$REV -v OI=$OI -v code=$code '
+function _ord_init(    low, high, i, t)
+{
+    low = sprintf("%c", 7) # BEL is ascii 7
+    if (low == "\a") {    # regular ascii
+        low = 0
+        high = 127
+    } else if (sprintf("%c", 128 + 7) == "\a") {
+        # ascii, mark parity
+        low = 128
+        high = 255
+    } else {        # ebcdic(!)
+        low = 0
+        high = 255
+    }
+
+    for (i = low; i <= high; i++) {
+        t = sprintf("%c", i)
+        _ord_[t] = i
+    }
+}
+function ord(str,    c)
+{
+    # only first character is of interest
+    c = substr(str, 1, 1)
+    return _ord_[c]
+}
+function chr(c)
+{
+    # force c to be numeric by adding 0
+    return sprintf("%c", c + 0)
+}
+BEGIN {
+    _ord_init()
+
+    #outer = ord(toupper(substr(OI, 1, 1))) - ord("A") + 1
+    outer = toupper(substr(OI, 1, 1))
+    outer = index(code, outer)
+    #print outer
+    code = substr(code, outer, 26-outer+1) substr(code, 1, outer-1)
+    #print code
+
+    inner = toupper(substr(OI, 2))
+    #print inner, 26-inner+2, substr(code, 26-inner+2, inner-1)
+    code = substr(code, 26-inner+2, inner-1) substr(code, 1, 26-inner+1)
+    #print code
+    if (0 && REV == 1)
+	print code
+}
+{
+    text = toupper($0)
+    if (text ~ /[A-Z]/)
+    {
+	#print "a"
+	for (i = 1; i <= length(text); ++i)
+	{
+	    c = substr(text, i, 1)
+	    if (c == " ")
+	    {
+		printf " "
+		continue
+	    }
+	    inner = index(code, c)
+	    printf "%d ",inner
+	}
+    }
+    else
+    {
+	#print "n"
+	for (i = 1; i <= NF; ++i)
+	{
+	    inner = $i
+	    outer = substr(code, inner, 1)
+	    printf "%s", outer
+	}
+    }
+    printf "\n"
+}
+'

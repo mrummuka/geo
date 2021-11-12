@@ -1,0 +1,103 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Geocaching 'smilies' to cryptogram
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Geocaching 'smilies' to cryptogram. Uses the source of the page.
+
+EXAMPLE
+    Use curl to download:
+
+	$ curl -L -s http://coord.info/GC4DAK7 | smilies2cryptogram 
+	ABCDEFGHIJKBLCJMNEDFGHIJDECJJJMNEDOBDPJCBAMAJKMQJFGHIJRJFDFGHIJ
+	BAJDRBDRBFGHIJBAJJMNEDOBDDRBDRBKMQJ
+
+    Then, go online to http://www.quipqiup.com/ . This one uses clues:
+    d=t e=h c=r j=e a=n k=f
+
+OPTIONS
+    -D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+tr -cs "[:alnum:]_" "\n" |	# one-word-per-line PLUS _
+    grep icon_ |
+awk '
+function chr(c)
+{
+    # force c to be numeric by adding 0
+    return sprintf("%c", c + 0)
+}
+function doit(word)
+{
+    if (a[word] == "")
+	a[word] = chr(64 + ++x)
+    printf "%s", a[word]
+    
+}
+/icon_smile$/ { doit($1); next }
+/icon_smile_big/ { doit($1); next }
+/icon_smile_wink/ { doit($1); next }
+/icon_smile_blush/ { doit($1); next }
+/icon_smile_evil/ { doit($1); next }
+/icon_smile_shy/ { doit($1); next }
+/icon_smile_kisses/ { doit($1); next }
+/icon_smile_approve/ { doit($1); next }
+/icon_smile_dissapprove/ { doit($1); next }
+/icon_smile_cool/ { doit($1); next }
+/icon_smile_clown/ { doit($1); next }
+/icon_smile_blackeye/ { doit($1); next }
+/icon_smile_8ball/ { doit($1); next }
+/icon_smile_angry/ { doit($1); next }
+/icon_smile_sad/ { doit($1); next }
+/icon_smile_tongue/ { doit($1); next }
+/icon_smile_sleepy/ { doit($1); next }
+/icon_smile_dead/ { doit($1); next }
+/icon_admin/ { next }
+{
+    print
+}
+END { printf "\n" }
+'
+

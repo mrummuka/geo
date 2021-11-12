@@ -1,0 +1,1001 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+    gpx2html - GPX to HTML converter
+
+=head1 SYNOPSIS
+
+    gpx2html [options] [<gpx-file> ...]
+
+=head1 DESCRIPTION
+
+    gpx2html is an application that generates simplified and compact HTML
+    pages from GPX files obtained from Pocket Queries at geocaching.com.
+
+=head1 OPTIONS
+
+    -a		Use old style index_names.html
+    -h|-?	Help
+
+=head1 SEE ALSO
+    http://www.fizzymagic.net/Geocaching/gpx2html/gpx2html.html
+
+=cut
+
+use strict;
+use XML::Twig;
+use Math::Trig;
+use Time::Local;
+use Time::localtime;
+#WARNING: the TZ Date::Manip config variable is deprecated
+#         and will be removed in March 2016.  Please use
+#         the SetDate or ForceDate config variables instead
+$ENV{'TZ'} = 'PST8PDT';
+use Date::Manip;
+# RER mod: 11/16/06 next line requires => use
+use HTML::Entities;
+
+sub usage
+{
+    system "pod2text $0";
+    exit 1;
+}
+
+#
+# process command line arguments
+#
+use Getopt::Std;
+my %Opt;
+use vars qw(%Opt);
+
+getopts("ah\?", \%Opt);
+
+if ($Opt{h} || $Opt{'?'}) {
+    &usage();
+}
+
+my $Version = '1.90+rick';
+my $VDate = '2/28/2004+8/8/2004+11/16/06+04/12/08+11/09/09+03/27/11';
+# WARNING: the TZ Date::Manip config variable is deprecated
+#          and will be removed in March 2016.  Please use
+#                   the SetDate or ForceDate config variables instead.
+#
+# Date::Manip::Date_Init("TZ=PST8PDT");
+
+print "gpx2html GPX to HTML Processor version $Version $VDate\n\n";
+
+my %FoundTypes = (
+   "Didn\'t find it" => 'Not Found',
+   'Found it' => 'Found',
+   'Needs Archived' => 'Archive Request',
+   'Other' => 'Note',
+   'Unknown' => 'Unknown',
+   'Archive (show)' => 'Archived',
+   'Archive (no show)' => 'Archived',
+   'Write note' => 'Note',
+   'Attended' => 'Attended',
+   'Will Attend' => 'Will Attend',
+   'Green' => 'Green'
+);
+
+my %CacheTypeIDs = (
+   'Traditional' => 'C',
+   'Multi' => 'M',
+   'Virtual' => 'V',
+   'Event' => 'E',
+   'Unknown' => 'Q',
+   'Locationless' => 'L',
+   'Letterbox Hybrid' => 'LB',
+   'Webcam' => 'W',
+   'Earth' => 'G'
+);
+
+my @Directions = (
+   'N', 'NNE', 'NE', 'ENE', 'E',
+   'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW',
+   'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'
+);
+
+my @InputFiles;
+if ($#ARGV >= 0) {
+   @InputFiles = (@ARGV);
+}
+else {
+   print "Finding GPX files...\n";
+   GetGPXFiles();
+}
+
+#default output directory name
+my $OutputDirectory = 'HTML';
+MakeOutputDirectory($OutputDirectory);
+my $OutputLocFile = 'Caches.loc';
+
+my %IgnoreCaches;
+my %CorrectedCaches;
+my %ReferenceLocations;
+my %CacheNameChanges;
+my %Caches;
+my %CacheLogs;
+my %CacheBugs;
+my %CacheNotes;
+# RER mod: 11/09/09
+my %CacheAttrs;
+my %NearestCaches;
+my $NumNearest = 5;
+my $GeneratedDate;
+my $ID;
+
+print "Getting ignore list...\n";
+GetIgnoreCaches();
+print "Getting corrections list...\n";
+GetCorrectedCaches();
+print "Getting reference locations...\n";
+GetReferenceLocations();
+print "Getting notes...\n";
+GetCacheNotes();
+print "Getting name changes...\n";
+GetCacheNameChanges();
+
+my $Parser = new XML::Twig(
+   twig_handlers=>{'gpx/time' => \&GetGeneratedTime, 'gpx/wpt/groundspeak:cache' => \&GetCache},
+   input_filter => 'safe'
+   );
+foreach my $InputFileName (@InputFiles) {
+   print "Cleaning input GPX file $InputFileName:\n";
+   CleanXML($InputFileName);
+   print "Processing input GPX file $InputFileName:\n";
+   $Parser->parsefile($InputFileName);
+   $Parser->purge;
+}
+
+print "\nWriting LOC file:\n";
+MakeLocFile();
+
+print "\nWriting HTML files:\n";
+foreach $ID (sort keys %Caches) {
+   GetNearestCaches($ID, $NumNearest);
+   MakeCacheFile($ID);
+}
+print "\nWriting index files:\n";
+MakeIndexFile();
+
+print "\nDone!\n";
+exit;
+
+sub GetGPXFiles
+{
+   opendir DIR, '.';
+   foreach my $FileName (reverse sort { -M "$b" cmp -M "$a" } readdir DIR) {
+      push @InputFiles, ($FileName) if ($FileName =~ m/\.gpx$/i);
+   }
+   closedir DIR;
+}
+
+sub CleanXML
+{
+   my $InputFileName = @_[0];
+   open (INPUTFILE, "<$InputFileName");
+   my @FileLines = readline(*INPUTFILE);
+   close INPUTFILE;
+   foreach my $Line (@FileLines) {
+      if ($Line =~ /<desc>/i) {
+         if ($Line =~ /<desc>Cleaned/i) {
+            print "File $InputFileName already cleaned.\n";
+            return;
+         }
+      }
+   }
+   open (OUTPUTFILE, ">$InputFileName");
+   foreach my $Line (@FileLines) {
+      if ($Line =~ /<desc>Geocache file/i) {
+         $Line =~ s/<desc>Geocache file/<desc>Cleaned file/i;
+      }
+      if ($Line =~ /\&\#/) {
+         my $H;
+         $Line =~ s/(\&\#((x?)\w+);)/($H=($3?hex($2):$2))>31||$H==9||$H==10||$H==13?$1:''/eig;
+      }
+      print OUTPUTFILE $Line;
+   }
+   close OUTPUTFILE;
+}
+
+sub MakeOutputDirectory
+{
+   my $Directory = @_[0];
+   if (-d $Directory) {
+      opendir DIR, $Directory;
+      foreach my $FileName (readdir DIR) {
+         unlink $Directory.'/'.$FileName if ($FileName =~ m/\.html/i);
+      }
+   }
+   else {
+      mkdir $Directory;
+   }
+}
+
+sub GetCache
+{
+   my ($t, $cache) = @_;
+   my $wpt = $cache->parent('wpt');
+   my $logs = $cache->first_child('groundspeak:logs');
+   my $attrs = $cache->first_child('groundspeak:attributes');
+   my $bugs = $cache->first_child('groundspeak:travelbugs');
+   my $ID = $wpt->first_child_text('name');
+   print "Parsing ID: $ID       \r";
+   if (defined $Caches{$ID}) {
+      print "Already parsed.      \r";
+      return;
+   }
+   if ($IgnoreCaches{$ID}) {
+      print "Ignoring...          \r";
+      return;
+   }
+   my $LogString = '';
+   my $LatestFoundDate = 0;
+   my $LatestDNFDate = 0;
+   my $LatestLogDate = 0;
+   foreach my $log ($logs->children('groundspeak:log')) {
+      my $LogEntry = {
+         Found => $FoundTypes{$log->first_child_text('groundspeak:type')},
+         FoundDate => XMLTime2Time($log->first_child_text('groundspeak:date')),
+         FoundBy => $log->first_child_text('groundspeak:finder'),
+         FoundNote => ProcessLogText($log->first_child_text('groundspeak:text'))
+      };
+
+      if ($LogEntry->{FoundDate} > $LatestLogDate) {
+         $LatestLogDate = $LogEntry->{FoundDate};
+      }
+      my $foundat = $log->first_child('groundspeak:log_wpt');
+      if ($foundat) {
+         $LogEntry->{FoundLat} = $foundat->att('lat');
+         $LogEntry->{FoundLong} = $foundat->att('lon');
+      }
+      push (@{$CacheLogs{$ID}}, $LogEntry);
+      if ($LogEntry->{Found} eq 'Not Found') {
+         $LogString .= '-';
+         if ($LogEntry->{FoundDate} > $LatestDNFDate) {
+            $LatestDNFDate = $LogEntry->{FoundDate};
+         }
+      }
+      elsif ($LogEntry->{Found} eq 'Found') {
+         $LogString .= '+';
+         if ($LogEntry->{FoundDate} > $LatestFoundDate) {
+            $LatestFoundDate = $LogEntry->{FoundDate};
+         }
+      }
+      else {
+         $LogString .= '.';
+      }
+   }
+    # RER mod: 11/09/09
+    if ($attrs) {
+	foreach my $attr ($attrs->children('groundspeak:attribute')) {
+	    my $AttrEntry = {
+		ID => $attr->{'att'}->{'id'},
+		Include => $attr->{'att'}->{'inc'},
+		Text => $attr->text,
+	    };
+	    push (@{$CacheAttrs{$ID}}, $AttrEntry);
+	}
+    }
+    # end RER mod
+   foreach my $bug ($bugs->children('groundspeak:travelbug')) {
+      my $BugEntry = {
+         ID => $bug->{'att'}->{'ref'},
+         Name => $bug->first_child_text('groundspeak:name'),
+      };
+      push (@{$CacheBugs{$ID}}, $BugEntry);
+   }
+   $Caches{$ID} = {
+      Number => $cache->{'att'}->{'id'},
+      Latitude => $wpt->{'att'}->{'lat'},
+      Longitude => $wpt->{'att'}->{'lon'},
+      Name => FixCacheName($cache->first_child_text('groundspeak:name')),
+      Type => FixCacheType($cache->first_child_text('groundspeak:type')),
+      Size => $cache->first_child_text('groundspeak:container'),
+      Date => XMLTime2Time($wpt->first_child_text('time')),
+      URL => $wpt->first_child_text('url'),
+      Symbol => $wpt->first_child_text('sym'),
+      Placer => $cache->first_child_text('groundspeak:placed_by'),
+      Difficulty => $cache->first_child_text('groundspeak:difficulty'),
+      Terrain => $cache->first_child_text('groundspeak:terrain'),
+      # rick: modification...
+      # ShortDescription => ProcessDescriptionText($cache->first_child_text('groundspeak:short_description')),
+      # LongDescription => ProcessDescriptionText($cache->first_child_text('groundspeak:long_description')),
+      ShortDescription => $cache->first_child_text('groundspeak:short_description'),
+      LongDescription => $cache->first_child_text('groundspeak:long_description'),
+      IsHTML => $cache->first_child('groundspeak:long_description')->att('html'),
+      MemberOnly => $cache->{'att'}->{'memberonly'},
+      CustomCoords => $cache->{'att'}->{'customcoords'},
+      PersonalNote => $cache->first_child_text('groundspeak:personal_note'),
+      # rick: end modification.
+      Hint => $cache->first_child_text('groundspeak:encoded_hints'),
+      DescriptiveString => $CacheTypeIDs{FixCacheType($cache->first_child_text('groundspeak:type'))},
+      LogString => $LogString,
+      LastFound => $LatestFoundDate,
+      LastLog => $LatestLogDate,
+      LastDNF => $LatestDNFDate,
+      LastDate => $LatestFoundDate,
+      Exported => GetExportedDate($GeneratedDate, $cache->first_child_text('groundspeak:exported')),
+      Corrected => 0,
+      OldLatitude => $wpt->{'att'}->{'lat'},
+      OldLongitude => $wpt->{'att'}->{'lon'},
+   };
+   # rick: modification...
+   if ($Caches{$ID}->{IsHTML} eq "True" ) {
+      # Do not re-encode HTML data...
+      $Caches{$ID}->{LongDescription} = decode_entities($Caches{$ID}->{LongDescription});
+      # Rip out any BACKGROUND= images
+      $Caches{$ID}->{LongDescription} =~ s/ background=[^ 	>]*//i;
+   }
+   # rick: end modification.
+   if (defined $CorrectedCaches{$ID}) {
+      $Caches{$ID}->{Corrected} = 1;
+      $Caches{$ID}->{Latitude} = $CorrectedCaches{$ID}->{Latitude};
+      $Caches{$ID}->{Longitude} = $CorrectedCaches{$ID}->{Longitude};
+   }
+   if ($Caches{$ID}->{Size} eq 'Micro') {
+      $Caches{$ID}->{DescriptiveString} .= 'm';
+   }
+   elsif ($Caches{$ID}->{Size} eq 'Small') {
+      $Caches{$ID}->{DescriptiveString} .= 's';
+   }
+
+   if (defined $CacheBugs{$ID}) {
+      $Caches{$ID}->{DescriptiveString} .= 'B';
+   }
+   if (index($LogString, '+') < 0 && length($LogString) < 4) {
+      $Caches{$ID}->{DescriptiveString} .= 'U';
+   }
+   if ($Caches{$ID}->{LastFound} == 0) {
+      $Caches{$ID}->{LastDate} = $Caches{$ID}->{Date};
+   }
+   $Parser->purge;
+}
+
+sub GetGeneratedTime
+{
+   my ($t, $tm) = @_;
+   $GeneratedDate = XMLTime2Time($tm->text);
+}
+
+sub MakeIndexFile
+{
+   my $CacheID;
+   my $Location;
+   my $ModLoc;
+   open(HTMLOUT, ">$OutputDirectory/index.html");
+   print HTMLOUT "<html><Head><Title>Caches Sorted by ID</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>Sorted by ID.</center>";
+   print HTMLOUT "<p><a href=\"index_rev.html\">Reverse Sorted by ID</a><br>\n";
+   print HTMLOUT "<a href=\"index_names.html\">Sorted by Name.</a><br>\n";
+   print HTMLOUT "<a href=\"index_date.html\">Sorted by Log Date.</a><br>\n";
+   print HTMLOUT "<a href=\"index_bugs.html\">With Travel Bugs.</a><br>\n";
+   print HTMLOUT "<a href=\"index_unfound.html\">Unfound.</a></p>\n";
+   foreach $Location (sort keys %ReferenceLocations) {
+      $ModLoc = lc($Location);
+      $ModLoc =~ s/\s/_/g;
+      print HTMLOUT "<br><a href=\"index_$ModLoc.html\">By distance from $Location</a>\n";
+   }
+   print HTMLOUT "</p><dl>\n";
+   foreach $CacheID (sort {$Caches{$a}->{Number} <=> $Caches{$b}->{Number}} keys %Caches) {
+      print HTMLOUT "<dt><a href=\"$CacheID.html\">$CacheID</a>: &nbsp;$Caches{$CacheID}->{Name} ($Caches{$CacheID}->{DescriptiveString})</dt>\n";
+   }
+   print HTMLOUT "</dl></Body></html>\n";
+   close HTMLOUT;
+
+   open(HTMLOUT, ">$OutputDirectory/index_rev.html");
+   print HTMLOUT "<html><Head><Title>Caches Reverse Sorted by ID</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>Reverse Sorted by ID.</center>";
+   print HTMLOUT "<p><a href=\"index.html\">Sorted by ID</a><br>\n";
+   print HTMLOUT "<a href=\"index_names.html\">Sorted by Name.</a><br>\n";
+   print HTMLOUT "<a href=\"index_date.html\">Sorted by Log Date.</a><br>\n";
+   print HTMLOUT "<a href=\"index_bugs.html\">With Travel Bugs.</a><br>\n";
+   print HTMLOUT "<a href=\"index_unfound.html\">Unfound.</a></p>\n";
+   print HTMLOUT "</p><dl>\n";
+   foreach $CacheID (reverse sort {$Caches{$a}->{Number} <=> $Caches{$b}->{Number}} keys %Caches) {
+      print HTMLOUT "<dt><a href=\"$CacheID.html\">$CacheID</a>: &nbsp;$Caches{$CacheID}->{Name} ($Caches{$CacheID}->{DescriptiveString})</dt>\n";
+   }
+   print HTMLOUT "</dl></Body></html>\n";
+   close HTMLOUT;
+
+   open(HTMLOUT, ">$OutputDirectory/index_names.html");
+   print HTMLOUT "<html><Head><Title>Caches Sorted by Name</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>Sorted by Name.</center>";
+   print HTMLOUT "<p><a href=\"index.html\">Sorted by ID.</a><br>\n";
+   print HTMLOUT "<a href=\"index_rev.html\">Reverse Sorted by ID</a></p>\n";
+   print HTMLOUT "<dl>\n";
+   print HTMLOUT "<hr>";
+   my @Alphabet = ('A' .. 'Z');
+
+   # rick: modification 4/12/08
+   if ($Opt{a}) {
+      # all in one file...
+      foreach my $i (@Alphabet) {
+         print HTMLOUT "<a href=\"\#$i\">$i</a>&nbsp;";
+      }
+      print HTMLOUT "<hr>\n";
+      my $CurrentFirstLetter = '!';
+      foreach $CacheID (sort {uc($Caches{$a}->{Name}) cmp uc($Caches{$b}->{Name})} keys %Caches) {
+	 if ($Caches{$CacheID}->{Name} =~ /^(\w)/) {
+	    if (!($1 =~ /\d/) && (uc($1) ne $CurrentFirstLetter)) {
+	       $CurrentFirstLetter = uc($1);
+	       print HTMLOUT "<dd><a name=\"$CurrentFirstLetter\">$CurrentFirstLetter</a></dd>\n";
+	    }
+	 }
+	 print HTMLOUT "<dt>$CacheID <a href=\"$CacheID.html\">$Caches{$CacheID}->{Name}</a> ($Caches{$CacheID}->{DescriptiveString})</dt>\n";
+      }
+      print HTMLOUT "</dl></Body></html>\n";
+      close HTMLOUT;
+   } else {
+      # separate files...
+      my $CurrentFirstLetter = '!';
+      open(LETOUT, ">$OutputDirectory/index_names_$CurrentFirstLetter.html");
+      print LETOUT "<html><Head><Title>Caches Sorted by letter $CurrentFirstLetter</Title></Head><Body>\n";
+      print HTMLOUT "<a href=\"index_names_$CurrentFirstLetter.html\">$CurrentFirstLetter</a>&nbsp;";
+      foreach $CacheID (sort {uc($Caches{$a}->{Name}) cmp uc($Caches{$b}->{Name})} keys %Caches) {
+	 if ($Caches{$CacheID}->{Name} =~ /^(\w)/) {
+	    if (!($1 =~ /\d/) && (uc($1) ne $CurrentFirstLetter)) {
+	       $CurrentFirstLetter = uc($1);
+	       close LETOUT;
+	       open(LETOUT, ">$OutputDirectory/index_names_$CurrentFirstLetter.html");
+	       print LETOUT "<html><Head><Title>Caches Sorted by letter $CurrentFirstLetter</Title></Head><Body>\n";
+	       print HTMLOUT "<a href=\"index_names_$CurrentFirstLetter.html\">$CurrentFirstLetter</a>&nbsp;";
+	    }
+	 }
+	 print LETOUT "<dt>$CacheID <a href=\"$CacheID.html\">$Caches{$CacheID}->{Name}</a> ($Caches{$CacheID}->{DescriptiveString})</dt>\n";
+      }
+      print LETOUT "</dl></Body></html>\n";
+      close LETOUT;
+      print HTMLOUT "</dl></Body></html>\n";
+      close HTMLOUT;
+   }
+   # rick: end modification 4/12/08
+
+   open(HTMLOUT, ">$OutputDirectory/index_bugs.html");
+   print HTMLOUT "<html><Head><Title>Caches With Bugs</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>With Travel Bugs.</center>";
+   print HTMLOUT "<p><a href=\"index.html\">Sorted by ID</a>\n";
+   print HTMLOUT "</p><dl>\n";
+   foreach $CacheID (reverse sort {$Caches{$a}->{LastDate} <=> $Caches{$b}->{LastDate}} keys %Caches) {
+      if (defined $CacheBugs{$CacheID}) {
+         print HTMLOUT "<dt><a href=\"$CacheID.html\">$CacheID</a>: &nbsp;$Caches{$CacheID}->{Name} (".MakeDate($Caches{$CacheID}->{LastDate}).")</dt>\n";
+      }
+   }
+   print HTMLOUT "</dl></Body></html>\n";
+   close HTMLOUT;
+
+   open(HTMLOUT, ">$OutputDirectory/index_unfound.html");
+   print HTMLOUT "<html><Head><Title>Unfound Caches</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>That Haven't Been Found.</center>";
+   print HTMLOUT "<p><a href=\"index.html\">Sorted by ID</a>\n";
+   print HTMLOUT "</p><dl>\n";
+   foreach $CacheID (reverse sort {$Caches{$a}->{LastDate} <=> $Caches{$b}->{LastDate}} keys %Caches) {
+      if (index($Caches{$CacheID}->{LogString}, '+') < 0 && length($Caches{$CacheID}->{LogString}) < 4 ) {
+         print HTMLOUT "<dt><a href=\"$CacheID.html\">$CacheID</a>: &nbsp;$Caches{$CacheID}->{Name} (".MakeDate($Caches{$CacheID}->{LastDate}).")</dt>\n";
+      }
+   }
+   print HTMLOUT "</dl></Body></html>\n";
+   close HTMLOUT;
+
+   # rick: modification...
+   open(HTMLOUT, ">$OutputDirectory/index_date.html");
+   print HTMLOUT "<html><Head><Title>Caches By Log Date</Title></Head><Body>\n";
+   print HTMLOUT "<center><h2>Geocaches</h2>by Log Date.</center>";
+   print HTMLOUT "<p><a href=\"index.html\">Sorted by ID</a>\n";
+   print HTMLOUT "</p><table>\n";
+   my $lastdate = "";
+   my $thiscnt = 0;
+   foreach $CacheID (reverse sort {$Caches{$a}->{LastLog} <=> $Caches{$b}->{LastLog}} keys %Caches) {
+      my $thisdate = MakeDate($Caches{$CacheID}->{LastLog});
+      if ($lastdate ne "" &&
+	    ($thisdate ne $lastdate && $thiscnt >= 5)	# day has changed
+	    || ($thisdate != $lastdate)			# month has changed
+	 ) {
+	 print HTMLOUT "<tr><td><br></td></tr>\n";
+	 $thiscnt = 0;
+      }
+      print HTMLOUT "<tr>";
+      print HTMLOUT "<td><a href=\"$CacheID.html\">$CacheID</td>"
+	 . "<td>" . $thisdate . "</td>"
+	 . "<td>$Caches{$CacheID}->{Name}</td>"
+	 . "</tr>\n";
+      ++$thiscnt;
+      $lastdate = $thisdate;
+   }
+   print HTMLOUT "</table></Body></html>\n";
+   close HTMLOUT;
+   # rick: end modification.
+
+   foreach $Location (sort keys %ReferenceLocations) {
+      $ModLoc = lc($Location);
+      $ModLoc =~ s/\s/_/g;
+      open(HTMLOUT, ">$OutputDirectory/index_$ModLoc.html");
+      print HTMLOUT "<html><Head><Title>Caches Sorted by Distance to $Location</Title></Head><Body>\n";
+      print HTMLOUT "<center><h2>Geocaches</h2>Sorted by Distance to $Location.</center>";
+      print HTMLOUT "<p><a href=\"index.html\">Sorted by ID.</a><br>\n";
+      print HTMLOUT "<a href=\"index_rev.html\">Reverse Sorted by ID</a><br>\n";
+      print HTMLOUT "<a href=\"index_names.html\">Sorted by Name.</a><br>\n";
+      print HTMLOUT "</p><dl>\n";
+      my @Dists = GetDistances($Location);
+      my $MaxDistance = $ReferenceLocations{$Location}->{MaxDistance};
+      foreach my $RefLocation (sort {$a->[1] <=> $b->[1]} @Dists) {
+         $CacheID = $RefLocation->[0];
+         my $Distance = $RefLocation->[1];
+         my $Bearing = $Directions[int(($RefLocation->[2] + 11.25) / 22.5)];
+         if ($Distance >= $MaxDistance) {
+            last;
+         }
+         print HTMLOUT "<dt>";
+         printf HTMLOUT "<tt>%.2f mi %s:</tt>", ($Distance, $Bearing);
+         print HTMLOUT " $CacheID <a href=\"$CacheID.html\">$Caches{$CacheID}->{Name}</a> ($Caches{$CacheID}->{DescriptiveString})</dt>\n";
+      }
+      print HTMLOUT "</dl></Body></html>\n";
+      close HTMLOUT;
+   }
+}
+
+sub MakeCacheFile
+{
+   my $ID = @_[0];
+   my $OutputFile = "$OutputDirectory/$ID.html";
+   my $Cache = $Caches{$ID};
+   open(HTMLOUT, ">$OutputFile");
+   if ($] ge 5.008) {
+      # Version 5.8, RER 03/19/06
+      binmode(HTMLOUT, ":utf8");
+   }
+   print "Generating file $OutputFile          \r";
+   print HTMLOUT "<html><Head><Title>Cache $ID - $Cache->{Name}</Title></Head><Body>\n";
+   print HTMLOUT "<p>$ID: $Cache->{Name} &nbsp;&nbsp; ($Cache->{Difficulty}/$Cache->{Terrain})<BR>\n";
+   print HTMLOUT "<b>".Deg2DMMLat($Cache->{Latitude}).'&nbsp;&nbsp;&nbsp;'.Deg2DMMLong($Cache->{Longitude})."</b>";
+
+   # RER mod 12/09/11
+   if (defined $Cache->{CustomCoords} && $Cache->{CustomCoords} eq "true") {
+    print HTMLOUT " [Corrected]";
+   }
+   if (defined $Cache->{MemberOnly} && $Cache->{MemberOnly} eq "true") {
+    print HTMLOUT " [SOC]";
+   }
+   print HTMLOUT "<BR>\n";
+   # end RER mod 12/09/11
+
+   if ($Cache->{Corrected}) {
+      print HTMLOUT "<b>Was:</b> ".Deg2DMMLat($Cache->{OldLatitude}).'&nbsp;&nbsp;&nbsp;'.Deg2DMMLong($Cache->{OldLongitude})."<br>\n";
+   }
+   print HTMLOUT "Type: <b>$Cache->{Type}</b> &nbsp;&nbsp;&nbsp; Size: <b>$Cache->{Size}</b><BR>\n";
+   print HTMLOUT "Placed: ".MakeDate($Cache->{Date})." by $Cache->{Placer}<br>\n";
+   if ($Cache->{LastFound} > 0) {
+      print HTMLOUT "$Cache->{LogString}";
+      print HTMLOUT " &nbsp;&nbsp; Last Found: ".MakeDate($Cache->{LastFound});
+   }
+    # RER mod: 11/09/09
+    if (defined $CacheAttrs{$ID}) {
+      print HTMLOUT "<br><b>Attributes:</b>\n";
+      my @Attrs = (@{$CacheAttrs{$ID}});
+      my $i = 0;
+      foreach my $Attr (@Attrs) {
+	 if ($i++ != 0) {
+	    print HTMLOUT ",";
+	 }
+	 if (defined $Attr->{Include} && $Attr->{Include} == 0) {
+	    print HTMLOUT "NOT";
+	 }
+         print HTMLOUT " $Attr->{Text}";
+      }
+      print HTMLOUT ".\n";
+    }
+    # end RER mod
+   if (defined $CacheBugs{$ID}) {
+      print HTMLOUT "<br>Travel Bugs:\n";
+      my @Bugs = (@{$CacheBugs{$ID}});
+      foreach my $Bug (@Bugs) {
+         print HTMLOUT "<br>$Bug->{Name}\n";
+      }
+   }
+   print HTMLOUT "</p>\n";
+   # RER mod 12/09/11
+   if (defined $Cache->{PersonalNote} && $Cache->{PersonalNote} ne "") {
+      print HTMLOUT '<p><b>Personal Note</b></p><blockquote>'.$Cache->{PersonalNote}."</blockquote>\n";
+   }
+   # end RER mod 12/09/11
+   print HTMLOUT "<p>$Cache->{ShortDescription}</p>\n";
+   print HTMLOUT "<p>$Cache->{LongDescription}</p>\n";
+   if (defined($CacheNotes{$ID})) {
+      print HTMLOUT '<p>Notes:</p><blockquote>'.$CacheNotes{$ID}."</blockquote>\n";
+   }
+   if (length($Cache->{Hint}) > 0) {
+      my $Hint = EncodeHint($Cache->{Hint});
+      print HTMLOUT "<p><a href=\"\#Hint\">Hint</a>:</p>\n";
+      print HTMLOUT "<blockquote>$Hint</blockquote>\n";
+   }
+   else {
+      print HTMLOUT "<p><b>No Hint</b></p>\n";
+   }
+   print HTMLOUT "<dl><dt>Nearest caches:</dt>\n";
+   my $i;
+   my @NearCaches = (@{$NearestCaches{$ID}});
+   foreach my $Near (@NearCaches) {
+      my $TempID = $Near->[0];
+      my $Distance = $Near->[1];
+      my $Bearing = $Directions[int(($Near->[2] + 11.25) / 22.5)];
+      printf HTMLOUT "<dd><tt>%.2f mi %s:</tt>", ($Distance, $Bearing);
+      print HTMLOUT " $TempID &nbsp; <a href=\"$TempID.html\">$Caches{$TempID}->{Name}</a> ($Caches{$TempID}->{DescriptiveString})</dd>";
+   }
+   print HTMLOUT "</dl>\n";
+   print HTMLOUT "<p>Cache ".$Cache->{Number}." Exported ".MakeDate($Cache->{Exported})."</p>\n";
+   if (defined $CacheLogs{$ID}) {
+      print HTMLOUT "<HR>";
+      my @Logs = (@{$CacheLogs{$ID}});
+      foreach my $Log (@Logs) {
+         print HTMLOUT "<p><b>$Log->{Found}</b> on ".MakeDate($Log->{FoundDate})." by $Log->{FoundBy}:\n";
+         if ($Log->{FoundLat} != 0) {
+            print HTMLOUT "<BR><b>".Deg2DMMLat($Log->{FoundLat}).'&nbsp;&nbsp;&nbsp;'.Deg2DMMLong($Log->{FoundLong})."</b></p>\n";
+         }
+         else {
+            print HTMLOUT "</p>\n";
+         }
+         print HTMLOUT "<blockquote>$Log->{FoundNote}</blockquote>\n";
+      }
+   }
+   print HTMLOUT "<HR><p><a name=\"Hint\">Decoded Hint:</a></p>\n";
+   my $Hint = ProcessHintText($Cache->{Hint});
+   print HTMLOUT "<blockquote>$Hint</blockquote>\n";
+   print HTMLOUT "</Body></html>\n";
+   close HTMLOUT;
+}
+
+sub GetExportedDate
+{
+   my ($FileDate, $RecordDate) = @_;
+   if (length($RecordDate) > 0) {
+      return XMLTime2Time($RecordDate);
+   }
+   else {
+      return $FileDate;
+   }
+}
+
+sub MakeLocFile
+{
+   open(OUTPUT, ">$OutputLocFile");
+   print OUTPUT "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+   print OUTPUT "<loc version=\"1.0\" src=\"EasyGPS\">\n";
+   foreach my $ID (keys %Caches) {
+      my $Cache = $Caches{$ID};
+      my $Name = $Cache->{Name};
+      my $Diff;
+      my $ModID = $ID;
+      $Name =~ s/[,|\'|\"]//g;
+      $Name =~ s/[\x80-\xFF]+//ig;
+      $Name =~ s/\&\#\d+?\;//ig;
+      $Name =~ s/\&\w+?\;//ig;
+      foreach my $NewName (keys %CacheNameChanges) {
+         my $InputName = $CacheNameChanges{$NewName}->{InputName};
+         my $OutputName = $CacheNameChanges{$NewName}->{OutputName};
+         $InputName =~ s/(\W)/\\$1/g;
+         $OutputName =~ s/(\W)/\\$1/g;
+         $Name =~ s/$InputName/$OutputName/i;
+      }
+      $Diff = " ($Cache->{Difficulty}-$Cache->{Terrain})";
+      $Name = uc($Name).uc($Diff);
+      my $Lat = $Cache->{Latitude};
+      my $Lon = $Cache->{Longitude};
+      my $URL = $Cache->{URL};
+      my $Symbol = $Cache->{Symbol};
+      substr($ModID,1,1) = substr($Cache->{DescriptiveString},0,1);
+      if (substr($Cache->{DescriptiveString},1,1) eq "m") {
+         substr($ModID,1,1) = lc(substr($ModID,1,1));
+      }
+      print OUTPUT "<waypoint>\n";
+      print OUTPUT "   <name id=\"$ModID\"><![CDATA[".$Name."]]></name>\n";
+      print OUTPUT "   <coord lat=\"$Lat\" lon=\"$Lon\"/>\n";
+      print OUTPUT "   <type>geocache</type><sym>$Symbol</sym>\n";
+      print OUTPUT "   <link text=\"Cache Details\">$URL</link>\n";
+      print OUTPUT "</waypoint>\n";
+   }
+   print OUTPUT "</loc>\n";
+   close OUTPUT;
+}
+
+sub XMLTime2Time
+{
+   my $XMLTime = @_[0];
+   $XMLTime =~ s/[+-]\d\d:\d\d$//;
+   $XMLTime =~ s/[a-zA-Z]*$//;
+   # rick modification: 03/27/2011
+       $XMLTime =~ s/T.*$//;
+   # end rick modification: 03/27/2011
+   my $RetTime = ParseDate($XMLTime);
+   return $RetTime;
+}
+
+sub MakeDate
+{
+   my $Time = @_[0];
+   my $Text = UnixDate($Time, "%m\/%d\/%Y");
+   return $Text;
+}
+
+sub GetNearestCaches
+{
+   my ($ID, $NumToStore) = @_;
+   my $DegToRad = 3.1415926535 / 180.;
+   my @Dists = ();
+   my @Nearest = ();
+   my $Cache = $Caches{$ID};
+   my $RefLat = $Cache->{Latitude} * $DegToRad;
+   my $RefLong = $Cache->{Longitude} * $DegToRad;
+   my ($Lat, $Long, $DeltaLong);
+   foreach my $CacheID (keys %Caches) {
+      $Lat = $Caches{$CacheID}->{Latitude} * $DegToRad;
+      $Long = $Caches{$CacheID}->{Longitude} * $DegToRad;
+      $DeltaLong = $Long - $RefLong;
+      my $Distance = 3956.088331 * acos(sin($RefLat) * sin($Lat) + cos($RefLat) * cos($Lat) * cos($DeltaLong));
+      my $Bearing = atan2(sin($DeltaLong)*cos($Lat), cos($RefLat)*sin($Lat)-sin($RefLat)*cos($Lat)*cos($DeltaLong)) / $DegToRad;
+      $Bearing += 360. if $Bearing < 0.;
+      push @Dists, [ $CacheID, $Distance, $Bearing ];
+   }
+   @Nearest = sort {$a->[1] <=> $b->[1]} @Dists;
+   shift @Nearest;
+   $NearestCaches{$ID} = [ (@Nearest)[0 .. $NumToStore-1] ];
+}
+
+sub GetDistances
+{
+   my $Location = @_[0];
+   my @Dists = ();
+   my $DegToRad = 3.1415926535 / 180.;
+   my $RefLat = $ReferenceLocations{$Location}->{Latitude} * $DegToRad;
+   my $RefLong = $ReferenceLocations{$Location}->{Longitude} * $DegToRad;
+   my ($Lat, $Long);
+   foreach my $CacheID (keys %Caches) {
+      $Lat = $Caches{$CacheID}->{Latitude} * $DegToRad;
+      $Long = $Caches{$CacheID}->{Longitude} * $DegToRad;
+      my $DeltaLong = $Long - $RefLong;
+      my $Distance = 3956.088331 * acos(sin($RefLat) * sin($Lat) + cos($RefLat) * cos($Lat) * cos($DeltaLong));
+      my $Bearing = atan2(sin($DeltaLong)*cos($Lat), cos($RefLat)*sin($Lat)-sin($RefLat)*cos($Lat)*cos($DeltaLong)) / $DegToRad;
+      $Bearing += 360. if $Bearing < 0.;
+      push @Dists, [ $CacheID, $Distance, $Bearing ];
+   }
+   return @Dists;
+}
+
+sub ProcessLogText
+{
+   my $LogText = @_[0];
+   $LogText =~ s/\[(\/*[i|b|u])\]/<\1>/gi;
+   $LogText =~ s/\[br\]/<br>/gi;
+   return $LogText;
+}
+
+sub Deg2DMMLat
+{
+   my $Latitude = @_[0];
+   my $Ret = sprintf "%s %d %.3f",
+      (($Latitude > 0.)?'N':'S', int(abs($Latitude)), (abs($Latitude) - int(abs($Latitude)))*60.);
+   return $Ret;
+}
+
+sub Deg2DMMLong
+{
+   my $Longitude = @_[0];
+   my $Ret = sprintf "%s %d %.3f",
+      (($Longitude > 0.)?'E':'W', int(abs($Longitude)), (abs($Longitude) - int(abs($Longitude))) * 60.);
+   return $Ret;
+}
+
+sub FixCacheType
+{
+   my $Type = @_[0];
+   $Type =~ s/[ |-]*Cache//gi;
+   $Type =~ s/ \(Reverse\)//gi;
+   return $Type;
+}
+
+sub FixCacheName
+{
+   my $Name = @_[0];
+   if (length $Name == 0) {
+      $Name = 'Generic Cache';
+   }
+   $Name =~ s/\"//g;
+   $Name =~ s/^\s+//g;
+   # Next two lines RER 06/18/06
+   $Name =~ s/^The //g;
+   $Name =~ s/^A //g;
+   return $Name;
+}
+
+sub EncodeHint
+{
+   my $Hint = Rot13(@_[0]);
+   $Hint =~ s/(\[.+?\])/Rot13($&)/eg;
+   $Hint =~ s/<.+?>//g;
+   return $Hint;
+}
+
+sub Rot13
+{
+   my $Text = @_[0];
+   $Text =~ tr/A-Za-z/N-ZA-Mn-za-m/;
+   return $Text;
+}
+
+sub ProcessDescriptionText
+{
+   my $Text = @_[0];
+# Remove images from HTML for Rob Stewart
+   $Text =~ s/<img.*?>//gi;
+# What the heck -- remove external references, too.
+   $Text =~ s/<a\s*?href.*?>//gi;
+# Remove font colot designations.
+   $Text =~ s/color=.*?([\s|>])/\1/gi;
+# Get rid of closing <br> and <hr> tags.
+   $Text =~ s/<([b|h]r).*?\/>/<\1>/gi;
+   return $Text;
+}
+
+
+sub ProcessHintText
+{
+   my $Hint = @_[0];
+   $Hint =~ s/<(\/*[i|b|u])>/\[\1\]/gi;
+   $Hint =~ s/<br>/\[br\]/gi;
+   $Hint =~ s/<.+?>//g;
+   $Hint =~ s/\[(\/*[i|b|u])\]/<\1>/gi;
+   $Hint =~ s/\[br\]/<br>/gi;
+   return $Hint;
+}
+
+sub GetIgnoreCaches
+{
+   if (-r 'IgnoreCaches.txt') {
+      open(IGNOREFILE, "<IgnoreCaches.txt");
+      my @Lines = readline(*IGNOREFILE);
+      foreach my $Line (@Lines) {
+         if ($Line =~ /^ *(GC\w{3,})/) {
+            $IgnoreCaches{$1} = 1;
+         }
+      }
+      close IGNOREFILE;
+   }
+}
+
+sub GetCorrectedCaches
+{
+   if (-r 'CorrectedCaches.txt') {
+      open(CORRECTFILE, "<CorrectedCaches.txt");
+      my @Lines = readline(*CORRECTFILE);
+      foreach my $Line (@Lines) {
+         my @Fields = SplitInputLine($Line);
+         if ($#Fields == 2) {
+            $CorrectedCaches{$Fields[0]} = {
+               Latitude => GetCoord($Fields[1]),
+               Longitude => GetCoord($Fields[2])
+            };
+         }
+      }
+      close CORRECTFILE;
+   }
+}
+
+sub GetReferenceLocations
+{
+   if (-r 'RefLocations.txt') {
+      open(REFFILE, "<RefLocations.txt");
+      my @Lines = readline(*REFFILE);
+      foreach my $Line (@Lines) {
+         my $MaxDistance = 100.;
+         my @Fields = SplitInputLine($Line);
+         if ($#Fields >= 3) {
+            $MaxDistance = $Fields[3];
+         }
+         if ($#Fields >= 2) {
+            $ReferenceLocations{$Fields[0]} = {
+               Latitude => GetCoord($Fields[1]),
+               Longitude => GetCoord($Fields[2]),
+               MaxDistance => $MaxDistance
+            };
+         }
+      }
+      close REFFILE;
+   }
+}
+
+sub SplitInputLine
+{
+   my $Line = @_[0];
+   my @Fields = ();
+   chomp($Line);
+   if ($Line =~ /^\s*\#/) {
+      return @Fields;
+   }
+   else {
+      $Line =~ s/\s*\#.*//;
+   }
+   my @Fields = split(/\s*,\s*/, $Line);
+   return @Fields;
+}
+
+sub GetCoord
+{
+   my $CoordString = @_[0];
+   my $Result = 0;
+   if ($CoordString =~ /\s*([N|S|E|W])\D*(\d+)\D*([\d|.]+)/i) {
+      my $Direction = uc($1);
+      $Result = $2 + $3 / 60.;
+      if ($Direction eq 'S' || $Direction eq 'W') {
+         $Result = -$Result;
+      }
+   }
+   elsif ($CoordString =~ /\s*-{0,1}\d+\.\d+/) {
+      $Result = $CoordString;
+   }
+   return $Result;
+}
+
+sub GetCacheNotes
+{
+   if (-r 'Notes.xml') {
+      my $Parser = new XML::Twig(
+         twig_handlers=>{'note' => \&GetCacheNote}, input_filter => 'safe');
+      $Parser->parsefile('Notes.xml');
+      $Parser->purge;
+   }
+}
+
+sub GetCacheNote
+{
+   my ($t, $note) = @_;
+   my $CacheNumber = $note->{'att'}->{'id'};
+   my $ID = GetCacheWaypoint($CacheNumber);
+#   print "Got note for cache $ID\n";
+   my $CacheNote = HTML::Entities::encode_entities($note->text);
+   $CacheNotes{$ID} = $CacheNote;
+}
+
+sub GetCacheWaypoint
+{
+   my $Base31 = '0123456789ABCDEFGHJKMNPQRTVWXYZ';
+   my $ID;
+   my $CacheNumber = @_[0];
+   if ($CacheNumber < 65536) {
+      $ID = sprintf("GC%X", $CacheNumber);
+   }
+   else {
+      my $TmpNumber = ($CacheNumber - 65536) / 31;
+      my $i;
+      # Bug fix 04/11/10 RER: limit 4 (not 3)
+      for ($i = 0; $i < 4; $i++) {
+         my $IntVal = int(($TmpNumber - int($TmpNumber))*31 + 0.01);
+         $ID .= substr($Base31, $IntVal, 1);
+         $TmpNumber /= 31;
+      }
+      my $IntVal = int(($TmpNumber - int($TmpNumber))*31 + 0.01) + index($Base31, 'G');
+      $ID .= substr($Base31, $IntVal, 1);
+      $ID = 'GC'.reverse $ID;
+   }
+   return $ID;
+}
+
+sub GetCacheNameChanges
+{
+   if (-r 'CacheNameChanges.txt') {
+      open(NAMEFILE, "<CacheNameChanges.txt");
+      my @Lines = readline(*NAMEFILE);
+      foreach my $Line (@Lines) {
+         my @Fields = SplitInputLine($Line);
+         if ($#Fields == 1) {
+            $CacheNameChanges{$Fields[1]} = {
+               InputName => $Fields[0],
+               OutputName => $Fields[1]
+            };
+         }
+      }
+      close NAMEFILE;
+   }
+}
+
+

@@ -1,0 +1,134 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - De-compile wherigo
+
+SYNOPSIS
+    `basename $PROGNAME` [options] file [outfile]
+
+DESCRIPTION
+    De-compile a wherigo to stdout.  gwcd output is redirected to stderr.
+
+    Uses python for gwcd, and java for unluac.
+
+    Just a wrapper script which contains:
+
+	python $DIR/gwcd/gwcd.py --all \$1 >&2
+	java -jar $DIR/$UNLUAC cartridge.luac
+
+OPTIONS
+    -d dir	Directory of wherigo files ($DIR)
+    -D lvl	Debug level
+
+EXAMPLES
+    Various examples:
+
+	$ wherigo2lua antlers_amusement_.gwc > xxx
+
+	$ wherigo2lua antlers_amusement_.gwc xxx
+
+	$ wherigo2lua you_cant_take_it_w.gwc > xxx
+	$ urwigo-decode <xxx
+
+	$ wherigo2lua historic_mackinaw.gwc >xxx
+	$ geo-map -s0 -c \$(zonepoint2map <xxx)
+
+	$ reverse-wherigo 809382 480302 325138
+	42.931380 -88.032280    n42.55.883 w88.01.937
+
+    Convert https://coord.info/GC7YMBH :
+
+	$ wherigo2lua clamming_on_the_mi.gwc xxx
+              if action ~= nil then
+                _7h7G.Active = false
+                _Wcmd.Active = false
+                _QIs3R.Active = false
+                _qH3.Active = false
+                _M3xax.Active = true
+                _fwmZg:RequestSync()
+              end
+	_M3xax.OriginalPoint = ZonePoint(41.6711400549754, -90.3400677590665, 0)
+	$ geo-coords 41.6711400549754 -90.3400677590665
+	N41.40.268 W90.20.404
+
+
+SEE ALSO
+    reverse-wherigo, urwigo-decode, zonepoint2map
+
+    https://github.com/driquet/gwcd
+
+    $DIR/gwcd/gwcy.py
+
+    https://sourceforge.net/projects/unluac/
+
+    $DIR/$UNLUAC
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DIR=~/Wherigo
+UNLUAC=unluac_2015_06_13.jar
+DEBUG=0
+STDOUT=
+while getopts "d:D:h?" opt
+do
+	case $opt in
+	d)	DIR="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+if [ $# = 2 ]; then
+    > $2
+    exec >> $2
+fi
+
+#
+#	Main Program
+#
+if [ ! -d "$DIR" ]; then
+    error "Can't find directory $DIR"
+fi
+if [ ! -s "$DIR/gwcd/gwcd.py" ]; then
+    error "Can't find $DIR/gwcd/gwcd.py"
+fi
+rm -f $DIR/media_*.*
+if which python.exe 2>/dev/null; then
+    python $(cygpath -w $DIR/gwcd/gwcd.py) --all $1 >&2
+else
+    python $DIR/gwcd/gwcd.py --all $1 >&2
+fi
+if which java.exe 2>/dev/null; then
+    java -jar $(cygpath -w $DIR/$UNLUAC) cartridge.luac
+else
+    java -jar $DIR/$UNLUAC cartridge.luac
+fi

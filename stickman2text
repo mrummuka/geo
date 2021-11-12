@@ -1,0 +1,79 @@
+#!/bin/sh
+
+# http://www.drawastickman.com/episode1?o=78-32-52-50-32-49-49-46-55-49-49s87-32-48-56-51-32-52-53-46-48-52-52
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Stickman to text
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Stickman to text.  Reads from stdin or command line args.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert the URL:
+
+	$ stickman2text 
+	http://www.drawastickman.com/episode1?o=78-32-52-50-32-49-49-46-55-49-49\
+	    s87-32-48-56-51-32-52-53-46-48-52-52
+	N42.11.711 W83.45.044
+
+SEE ALSO
+    http://www.drawastickman.com/
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    addletters -r -a \
+	$(sed -e 's/.*o=//' -e 's/s/ 32 /' | tr '-' ' ')
+else
+    addletters -r -a \
+	$(echo "$*" | sed -e 's/.*o=//' -e 's/s/ 32 /' | tr '-' ' ')
+fi \
+    | sed \
+	-e 's/\([NSWE]\) /\1/g' \
+	-e 's/ /./' \
+	-e 's/ \([^ ]*\)$/.\1/' \
+	-e 's/\([EW]\)0/\1/' \
+    | tr -d '\260'"'"

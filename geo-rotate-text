@@ -1,0 +1,145 @@
+#!/bin/sh
+
+#
+#	skel.sh:
+#
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Rotate text CW, CCW, or flip
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Rotate text clockwise, counter-clockwise, or flip around.
+
+OPTIONS
+    -cw		Rotate clockwise
+    -ccw	Rotate counter-clockwise
+    -f		Flip
+    -D lvl	Debug level
+
+EXAMPLES
+    Assume "xxx" has the lines in it:
+
+	abcd
+	efgh
+
+    Do nothing:
+
+	$ geo-rotate-text -ccw  < xxx | geo-rotate-text -cw
+	abcd
+	efgh
+
+    Clockwise:
+
+	$ geo-rotate-text -cw < xxx
+	ea
+	fb
+	gc
+	hd
+
+    Counter-clockwise:
+
+	$ geo-rotate-text -ccw < xxx
+	dh
+	cg
+	bf
+	ae
+
+    Flip:
+
+	$ geo-rotate-text -f < xxx
+	ae
+	bf
+	cg
+	dh
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+MODE=cw
+while getopts "c:fD:h?" opt
+do
+	case $opt in
+	c)	MODE=c"$OPTARG"
+		case "$MODE" in
+		cw|ccw)	;;
+		*)	error "Only cw or ccw for mode";;
+		esac
+		;;
+	f)	MODE=flip;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+awk -v MODE="$MODE" '
+{
+    a[++n] = $0
+}
+END {
+    l = length(a[1])
+    if (MODE == "flip")
+    {
+	for (y = 1; y <= l; ++y)
+	{
+	    for (x = 1; x <= n; ++x)
+	    {
+		printf "%c", substr(a[x], y, 1)
+	    }
+	    printf "\n"
+	}
+    }
+    else if (MODE == "cw")
+    {
+	for (x = 1; x <= l; ++x)
+	{
+	    for (y = 1; y <= n; ++y)
+	    {
+		printf "%c", substr(a[n-y+1], x, 1)
+	    }
+	    printf "\n"
+	}
+    }
+    else if (MODE == "ccw")
+    {
+	for (y = 1; y <= l; ++y)
+	{
+	    for (x = 1; x <= n; ++x)
+	    {
+		printf "%c", substr(a[x], l-y+1, 1)
+	    }
+	    printf "\n"
+	}
+    }
+}
+'

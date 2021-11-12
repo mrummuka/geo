@@ -1,0 +1,347 @@
+#!/bin/bash
+
+PROGNAME="$0"
+# Often called from cron, but convert is here...
+PATH="$PATH:/usr/bin/X11"
+PATH="$PATH:$HOME/bin"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Fetch MnGCA cache counts and upload to website
+
+SYNOPSIS
+	`basename $PROGNAME` [options]
+
+DESCRIPTION
+	Fetch MnGCA cache counts and upload to website.
+
+	Run this on Mondays and Fridays in the wee hours
+
+OPTIONS
+	-i	Just recreate the web pages from existing data
+	-m l,l	Override moving123 lat/lon
+	-D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+# Convert DegDec, MinDec, or DMS lat/lon to DegDec
+#
+latlon() {
+    # Handle NSEW prefixes
+    arg1=`echo "$1" | sed -e 's/^[nNeE]//' -e 's/^[wW]/-/' -e 's/^[sS]/-/'`
+    # If negative, print the sign then take the absolute value
+    case "$arg1" in
+    -*)	printf "-"; arg1=`echo "$arg1" | sed 's/^-//'`;;
+    esac
+    # Now handle the 3 different formats
+    case $# in
+    1)	
+	case "$arg1" in
+	*.*.*)	echo "$arg1" \
+		| sed -e 's/,//' -e 's#\([^.]*\)\.#\1 #' -e 's#$# 6k 60/+p#' \
+		| dc
+		;;
+	*)	echo $arg1
+		;;
+	esac
+	;;
+    2)	echo "6k $arg1 $2 60/+p" | dc;;
+    3)	echo "6k $arg1 $2 60/ $3 3600/++p" | dc;;
+    esac
+}
+
+#
+#	Convert DegDec to MinDec
+#
+degdec2mindec() {
+    awk -v v=$1 \
+	'BEGIN{ i=int(v); f=(v-i)*60; if(f<0)f=-f; printf "%d.%06.3f\n", i, f}'
+}
+
+#
+#       Process the options
+#
+GEOSLEEP=5
+DEBUG=0
+INDEXONLY=0
+LL123=
+while getopts "im:s:D:h?" opt
+do
+	case $opt in
+	i)	INDEXONLY=1;;
+	m)	LL123="$OPTARG";;
+	s)	GEOSLEEP="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+
+#
+#	Fetch the memberlist from MnGCA
+#
+URL="http://www.mngca.org/forum/memberlist.php?mode=&order=ASC"
+ORG=mngca
+BASE=/tmp/$ORG
+MEMBERS=$BASE.members
+COUNTS=$BASE.counts
+TMP=$BASE.tmp
+
+if [ $INDEXONLY = 0 ]; then
+    if true; then
+	if [ $DEBUG -lt 2 ]; then
+	    ((start=0))
+	    while ((start < 1000)); do
+		lynx -dump -width=99999 "$URL&start=$start" \
+		| tee $TMP \
+		| grep "Send private" \
+		| sed -e 's/[^]]*]//' -e 's/[^]]*]//' -e 's/  .*//'
+		start=$(awk -vs=$start \
+		    '/^   Page [0-9]* of [0-9]* / { 
+			print $2==$4 ? 99999 : s+50
+		    }' < $TMP)
+	    done > $MEMBERS
+
+	    #
+	    #	Add in MN cachers that are not members of MnGCA
+	    #
+	    cat <<-EOF >>$MEMBERS
+		seabiskit
+		nonlinear-kelsey
+		Good-Boy
+		Pokeboy
+		EOF
+	else
+	    cat <<-EOF >$MEMBERS
+		Centris
+		Moe the Sleaze
+		EOF
+	fi
+    else
+	#
+	# Temp hack while mngca site is down
+	#
+	cp /home/rick/.mngca.members $MEMBERS
+    fi
+
+    #
+    #	Now fetch the counts
+    #
+    while read member
+    do
+	case "$member" in
+	"King Kong")	continue;;	# Member alias
+	"Ko_tis_vey")	continue;;	# Member alias
+	"semaj")	continue;;	# Member alias
+	"WashingtonCountyGuy")	continue;;	# Member alias
+	"tjlloyd")	continue;;	# Member alias
+	"TJM_12")	continue;;	# Member alias
+	"tlg555")	continue;;	# Member alias
+	"Ron&Janer")	continue;;	# Member alias
+	"Jay Leno")	continue;;	# Member alias
+	"Captain Insano")	continue;;	# Member alias
+	"Sam Corky Sosa")	continue;;	# Member alias
+	esac
+	geo-count -s "$member"
+	sleep $GEOSLEEP
+    done <$MEMBERS > $COUNTS
+fi
+
+#
+#	Sort data into four lists
+#
+doit() {
+    echo	"#Rank	#Found	#Placed	#F+P	#Bugs	#Bugged	Who"
+    sort $* | pr -n -t
+}
+
+if [ -s "$COUNTS" ]; then
+    doit -r -n -k1,1 -k2,2 -k4,4 -k5,5 $COUNTS > $BASE.byfound
+    doit -r -n -k2,2 -k1,1 -k4,4 -k5,5 $COUNTS > $BASE.byplaced
+    doit -r -n -k3,3 -k1,1 -k2,2 $COUNTS > $BASE.byfp
+    doit -r -n -k4,4 -k5,5 -k2,2 -k1,1 $COUNTS > $BASE.bybugs
+    doit -r -n -k5,5 -k2,2 -k1,1 -k4,4 $COUNTS > $BASE.bybugged
+fi
+
+#
+#	Figure out where RJ's Moving 123 cache currently is...
+#
+RJPAGE="http://www.geocaching.com/seek/cache_details.aspx?ID=60761"
+RJPAGE="http://www.geocaching.com/seek/cache_details.aspx?ID=60761&log=y"
+TXT=/tmp/moving123.txt
+LIST123=/tmp/moving123-found.txt
+lynx -dump -width=9999 "$RJPAGE" > $TXT
+touch /tmp/moving123
+mv /tmp/moving123 /tmp/moving123-old
+if [ "" != "$LL123" ]; then
+    case "$LL123" in
+    *\,*)
+	echo "$LL123" | tr ',' '\n' > /tmp/moving123
+	;;
+    *)	error "Missing comma in -m option '$LL123'";;
+    esac
+else
+    grep -A3 "Cache is located at:" $TXT | tail -2 > /tmp/moving123
+fi
+grep " by [[]" $TXT | grep smile | sed 's/[[][^]]*]//g' > $LIST123
+
+latlons() {
+    read a1 a2
+    minlat=`echo "$a1$a2" | tr ' ' '+'`
+    lat=`latlon $a1$a2`
+    read a1 a2
+    minlon=`echo "$a1$a2" | tr ' ' '+'`
+    lon=`latlon $a1$a2`
+}
+
+latlons < /tmp/moving123
+now=`date +"%m/%d+%H:%M"`
+RJMAP="http://www.geocaching.com/map/getmap.aspx?lat=$lat&lon=$lon"
+RJMAP="http://mappoint.msn.com/map.aspx?C=$lat,$lon&A=35.83333&P=|$lat,$lon|1|Moving123,+$minlat+$minlon,+as+of+$now|L1|"
+
+# rm -f /tmp/moving123
+
+if ! cmp -s /tmp/moving123-old /tmp/moving123; then
+    geo-map -o/tmp/moving123.png -aterra -W1280 -H1024 -s1k \
+	-T "Moving 123, $(degdec2mindec $lat) $(degdec2mindec $lon), $now" \
+	$lat $lon "" >/dev/null
+    geo-map -o/tmp/moving123-hires.png -atscom -s.5fpp \
+	-T "Moving 123, $(degdec2mindec $lat) $(degdec2mindec $lon), $now" \
+	$lat $lon "" >/dev/null
+    if [ $DEBUG -lt 2 ]; then
+	ncftpput -V -m -f $HOME/.ncftp-website mngca /tmp/moving123*.png
+    fi
+fi
+
+#
+#	Create index pages
+#
+mngca_index() {
+		#<br><li><a href=stats>Statistics</a></li>
+		#<br><li><a href=6deg/6deg.html>6 Degrees of separation</a>
+		    #(who ran into who)
+		    #</li>
+    cat <<-EOF
+	<html>
+	<head>
+	    <title>MnGCA Maps, Statistics, and Software</title>
+	</head>
+	<body>
+	    <h2><a href=http://www.mngca.org>MnGCA</a>
+		    Maps, Statistics, and Software</h2>
+	    <ul>
+		<br><li><a href=maps>Newest Caches Maps</a></li>
+		<br><li><a href=mylogs>Recent Log Entries</a> </li>
+		<br><li><a href=geochecker.html>Geochecker (puzzles)</a> </li>
+		<br><li><a href=giantmap>Giant Maps</a>
+		    </li>
+		<br><li><a href=geodetics.html>Geodetics Calculator</a>
+		    (<a href=http://homepages.ihug.co.nz/~gazzanic/geodetics.html>
+			original version</a>)
+		    </li>
+		<br><li><a href=greatcircle.html>Great Circle Calculator</a>
+		    (far distances)
+		    </li>
+		<br><li><a href=LogBooks>Log Books</a>
+		    </li>
+		<br><li><a href=http://geo.rkkda.com>Rickrich's Software</a>
+		    (for linux or CygWin)
+		    </li>
+		<br><li>Current location <a href="$RJMAP">map</a>,
+		    <a href=moving123.png>photo</a>, and
+		    <a href=moving123-hires.png>hi-res photo</a>
+		    for <a href="$RJPAGE">Moving 123 by RJ</a>,
+		    <br> found by
+		    <a href=moving123-found.txt>these people</a> (so far).
+		    </li>
+		<br><li><a href=http://carvergisweb1.co.carver.mn.us/arcims/gis/public/parcel_search/>Carver County Property Tax Map</a>
+		    </li>
+		<br><li><a href=http://gis.co.hennepin.mn.us/property/map/>Hennepin County Property Tax Map</a>
+		    </li>
+		<br><li><a href=misc>Miscellaneous (inc. rickrich.gpx hides)</a>
+		    </li>
+	    </ul>
+	    <hr>
+<!-- Start of StatCounter Code -->
+<script type="text/javascript" language="javascript">
+var sc_project=2367848; 
+var sc_invisible=0; 
+var sc_partition=22; 
+var sc_security="7e93d4c6"; 
+var sc_text=2; 
+</script>
+
+<script type="text/javascript" language="javascript" src="http://www.statcounter.com/counter/counter.js"></script><noscript><a href="http://www.statcounter.com/" target="_blank"><img  src="http://c23.statcounter.com/counter.php?sc_project=2367848&java=0&security=7e93d4c6&invisible=0" alt="counter" border="0"></a> </noscript>
+<!-- End of StatCounter Code -->
+	</body>
+	</html>
+	EOF
+}
+
+mngca_stats() {
+    cat <<-EOF
+	<html>
+	<head>
+	    <title>MnGCA Statistics</title>
+	</head>
+	<body>
+	    <h2>MnGCA Statistics</h2>
+	    <ul>
+		<br><li><a href=$ORG.byfound>
+			    Counts sorted by caches found</a></li>
+		<br><li><a href=$ORG.byplaced>
+			    Counts sorted by caches placed</a></li>
+		<br><li><a href=$ORG.byfp>
+			    Counts sorted by caches found+placed</a></li>
+		<br><li><a href=$ORG.bybugs>
+			    Counts sorted by travel bugs (and geocoins) found
+		    </a></li>
+		<br><li><a href=$ORG.bybugged>
+			    Counts sorted by travel bugs placed</a></li>
+	    </ul>
+	    <p><font size=-1>
+		Cache counts are updated on Monday and Friday mornings.
+	    </font></p>
+	</body>
+	</html>
+	EOF
+}
+
+#
+#	Upload the whole she-bang to the website
+#
+if [ $DEBUG -lt 2 ]; then
+    ncftpput -V -m -f $HOME/.ncftp-website mngca/stats $BASE.by*
+
+    mngca_index > /tmp/index.html
+    cp -a /tmp/index.html /tmp/123.html
+    ncftpput -V -m -f $HOME/.ncftp-website mngca \
+	/tmp/index.html $LIST123
+
+    mngca_stats > /tmp/index.html
+    ncftpput -V -m -f $HOME/.ncftp-website mngca/stats /tmp/index.html
+else
+    cat $BASE.by*
+fi

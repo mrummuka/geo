@@ -1,0 +1,90 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Get a state
+
+SYNOPSIS
+	`basename $PROGNAME` [options] state
+
+DESCRIPTION
+	Get state by:
+
+	    cd ~/Caches
+	    geo-newest -n4000 -H \$ss/tmp \$SS >/dev/null
+	    geo-html2gpx \$ss/tmp/*.html >\$ss/\$ss.gpx
+	    (cd \$ss; gpx2html)
+	    geo-2gpsdrive -s -S -igpx \$ss/\$ss.gpx
+
+OPTIONS
+	-D lvl	Debug level
+
+EXAMPLE
+	geo-state sd
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=1
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# != 1 ]; then
+    usage
+fi
+
+case "$1" in
+??)	;;
+*)	usage;;
+esac
+
+ss=`echo "$1" | tr '[A-Z]' '[a-z]'`
+SS=`echo "$1" | tr '[a-z]' '[A-Z]'`
+cd ~/Caches
+
+[ -d $ss/tmp ] || mkdir $ss $ss/tmp
+if [ $DEBUG = 0 ]; then
+    geo-newest -n4000 -H $ss/tmp $SS >/dev/null
+else
+    geo-newest -n20 -H $ss/tmp $SS >/dev/null
+fi
+if [ $? != 0 ]; then
+    error "geo-newest error!"
+fi
+
+geo-html2gpx $ss/tmp/*.html >$ss/$ss.gpx
+(cd $ss; gpx2html >/dev/null || error "gpx2html error!")
+
+geo-2gpsdrive -s -S -igpx $ss/$ss.gpx
+

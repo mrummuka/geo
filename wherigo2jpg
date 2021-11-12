@@ -1,0 +1,101 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Pull jpg images out of a wherigo file
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [wherigo.gwc]
+
+DESCRIPTION
+    Pull jpg images out of a wherigo file and write them to "wherigoNNN.jpg".
+
+    Needs gawk.
+
+OPTIONS
+    -d dir	Directory to write images [$DIR]
+    -D lvl	Debug level
+
+EXAMPLE
+    Survivor:
+
+	$ wherigo2jpg -d tmp survivor.gwc
+	$ eog tmp/*.jpg
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+DIR=.
+while getopts "d:D:h?" opt
+do
+	case $opt in
+	d)	DIR="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+rm -f $DIR/wherigo[0-9][0-9][0-9].jpg
+[ -d "$DIR" ] || mkdir "$DIR"
+
+awk=awk
+if [ `uname` = "Darwin" ]; then
+    awk=gawk
+    if ! which -s $awk; then
+	error "'$awk' not found.  Install it from http://rudix.org/packages/gawk.html"
+    fi
+fi
+
+$awk -v DIR="$DIR" '
+function chr(c)
+{
+    # force c to be numeric by adding 0
+    return sprintf("%c", c + 0)
+}
+BEGIN {
+    # old
+    RS = "\xFF\xD8\xFF\xE0"
+    # new, Adobe stuff
+    RS = "\xFF\xD8\xFF"
+    filenum = -1
+}
+{
+    # if (chr(substr($0, 1, 1)) < 0xe0) next;
+    # printf "%c\n", substr($0, 1, 1)
+    filenum++
+    if (filenum == 0) {next}
+    filename = sprintf("%s/wherigo%03d.jpg", DIR, filenum)
+    printf "%s", RS$0 > filename
+}' $1
+
+if [ `uname` = "Darwin" ]; then
+    open -a iPhoto $DIR/wherigo*.jpg
+else
+    eog $DIR/wherigo*.jpg
+fi

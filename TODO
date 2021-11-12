@@ -1,0 +1,14 @@
+KNOWN BUGS
+
+- "join" in common-gc is incorrect for geo-found.
+- Umlauts: &#228; goes to C3 A4.  
+
+FEATURES
+- Add cache ID ignore list, for doing multiple people's found lists
+
+- Add aliases file for lat/lon's
+
+- Straighten out the output of geo-code so its usable in scripts.
+
+- Change sense of -m flag to enable evil members-only caches.
+

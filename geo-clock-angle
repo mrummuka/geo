@@ -1,0 +1,157 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - compute the clock angle or the time
+
+SYNOPSIS
+    `basename $PROGNAME` [options] time_or_angle ...
+
+DESCRIPTION
+    Compute the clock angle.  You can give the time or the angle.
+
+OPTIONS
+    -h		Use angle of hour hand only
+    -D lvl	Debug level
+
+EXAMPLE
+    Compute using the time:
+
+	$ geo-clock-angle 3:15 15:15
+	3:15    7.5     352.5
+	15:15   367.5   -7.5
+
+    Compute using the angle:
+
+	$ geo-clock-angle 105 285 97.5 285 105 285
+	105     2:30    9:30
+	285     3:30    8:30
+	97.5    5:45    6:15
+	285     3:30    8:30
+	105     2:30    9:30
+	285     3:30    8:30
+
+    Compute using the hour hand only:
+
+	$ geo-clock-angle -h 3:15 8:57:05
+	TIME            HOURS           MINUTES         (360+M-H)%360
+	    3:15        97.5000000      90.0000000      -7.5000000
+	 8:57:05        268.5416667     342.5000000     73.9583333
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+JUSTHOURS=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	h)	JUSTHOURS=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+echo $* |
+awk -v JUSTHOURS=$JUSTHOURS '
+function abs(x){return ((x < 0.0) ? -x : x)}
+{
+    first = 1
+    for (i = 1; i <= NF; ++i)
+    {
+	text = $i
+	if (text ~ /:/)
+	{
+	    h = text
+	    sub(":.*", "", h)
+	    m = text
+	    sub("[^:]*:", "", m)
+	    sub(":.*", "", m)
+	    if (text ~ /:.*:/)
+	    {
+		s = text
+		sub(".*:", "", s)
+	    }
+	    else
+		s = 0
+	    #print h, m, s
+	    if (JUSTHOURS)
+	    {
+		if (first)
+		{
+		    printf "TIME\t\tHOURS\t\tMINUTES\t\t(360+M-H)%360\n"
+		    first = 0
+		}
+		thetah = (h + m/60.0 + s/3600.0) * 30
+		thetam = (m + s/60.0) * 6
+		printf "%8s	%.7f	%.7f	%.7f\n",
+		    text, thetah, thetam, (360+thetam-thetah)%360
+	    }
+	    else
+	    {
+		thetah = (60*h + m)/2
+		thetam = 6*m
+		printf "%s	%s	%s\n",
+		    text, abs(thetah-thetam), 360-abs(thetah-thetam)
+	    }
+	}
+	else
+	{
+	    first = 1
+	    for (h = 1; h <= 12; ++h)
+		for (m = 0; m <= 59; ++m)
+		{
+		    if (JUSTHOURS)
+		    {
+			if (text == ((h + m/60) * 30) )
+			{
+			    if (first) printf "%s", text
+			    first = 0
+			    printf "\t%d:%02d", h, m
+			}
+		    }
+		    else
+		    {
+			if (text == abs((60*h + m)/2 - 6*m) \
+			    || text == 360 - abs((60*h + m)/2 - 6*m) )
+			{
+			    if (first) printf "%s", text
+			    first = 0
+			    printf "\t%d:%02d", h, m
+			}
+		    }
+		}
+	    printf "\n"
+	}
+    }
+}
+'

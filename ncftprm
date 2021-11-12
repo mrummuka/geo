@@ -1,0 +1,95 @@
+#!/bin/bash
+
+#
+#	ncftprm
+#
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+Usage:
+	`basename $PROGNAME` -f login.cfg [options] remote-directory files...
+
+	Remove files from an FTP site, NCFTP get/put style.
+
+Options:
+	-f config	Use config as login.cfg
+	-S		Use lftp instead of ftp and set sftp://...
+	-D lvl		Debug level
+
+Example:
+	ncftprm -f ~/.ncftp-website geo '*.tar.gz'
+
+	ncftprm -S -f ~/.ncftp-website geo '*.tar.gz'
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+CFG=
+AUTOAUTH=-u
+AUTOAUTH=
+SFTP=0
+while getopts "SD:f:h?" opt
+do
+	case $opt in
+	S)	SFTP=1;;
+	D)	DEBUG="$OPTARG";;
+	f)	eval CFG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+[ "$CFG" != "" ] || error "Must specify -f option"
+[ $# -ge 2 ] || usage
+
+#
+#	Main Program
+#
+
+DIR="$1"
+shift
+FILES="$*"
+host=`grep host $CFG | tail -1 | awk '{print $2}'`
+pass=`grep pass $CFG | tail -1 | awk '{print $2}'`
+user=`grep user $CFG | tail -1 | awk '{print $2}'`
+[ "$host" != "" ] || error "No 'host' line in $CFG"
+[ "$user" != "" ] || error "No 'user' line in $CFG"
+[ "$pass" != "" ] || error "No 'pass' line in $CFG"
+
+#
+#	N.B. change this to use expect so we have some error handling
+#
+
+if [ $SFTP = 0 ]; then
+    ftp -n $AUTOAUTH -i <<-EOF
+	open $host
+	user $user $pass
+	cd $DIR
+	mdel $FILES
+	quit
+	EOF
+else
+    lftp <<-EOF
+	set sftp:auto-confirm yes
+	open sftp://$host
+	user $user $pass
+	cd $DIR
+	mrm $FILES
+	quit
+	EOF
+fi

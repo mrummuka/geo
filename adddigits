@@ -1,0 +1,202 @@
+#!/bin/sh
+
+#
+#	skel.sh:
+#
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - add individual digits in a number
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [number] ...
+
+DESCRIPTION
+    Add individual digits in a number.
+
+OPTIONS
+    -a		Additive Persistance, i.e.
+
+		    http://en.wikipedia.org/wiki/Persistence_of_a_number
+
+    -l		Count circles in numbers (0,6,9 = 1; 8 = 2)
+    -L		Count loops in numbers (0,4,6,9 = 1; 8 = 2)
+    -m		Multiplicative Persistance, i.e.
+
+		    http://en.wikipedia.org/wiki/Persistence_of_a_number
+
+    -p		Petals Around the Rose (3=2, 5=4, rest are zero), i.e.
+
+		    http://en.wikipedia.org/wiki/Petals_Around_the_Rose
+
+    -P		Pryzbylewski or Prezbo from "The Wire", i.e.
+
+		    1=9 2=8 3=7 4=6 5=0 6=4 7=3 8=2 9=1
+
+		    https://en.wikipedia.org/wiki/Roland_Pryzbylewski
+		    https://www.youtube.com/watch?v=DQBlq45c1T4
+
+    -r		Digital root or recursive, i.e.
+
+		    http://en.wikipedia.org/wiki/Digital_root
+
+    -D lvl	Debug level
+
+EXAMPLES
+    Add digits:
+
+	$ adddigits 1956
+	21
+
+    Digital root:
+
+	$ adddigits -r 1956
+	3
+
+    Additive and Multiplicative Persistance:
+
+	$ adddigits -a 1956
+	2
+
+	$ adddigits -m 1957
+	3
+
+    Petals Around the Rose:
+
+	$ adddigits -p 35264
+	6
+
+    Count circles in numbers:
+
+	$ adddigits -l 80177437
+	3
+
+    Count loops in numbers:
+
+	$ adddigits -L 80177437
+	4
+
+    Pryzbylewski's code:
+
+	$ adddigits -P 71490 88956
+	39615
+	22104
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ROOT=0
+ADD=0
+MULT=0
+LOOPS=0
+PETALS=0
+PREZBO=0
+while getopts "amlLpPrD:h?" opt
+do
+	case $opt in
+	a)	ROOT=1; ADD=1;;
+	m)	ROOT=1; MULT=1;;
+	l)	LOOPS=1;;
+	L)	LOOPS=2;;
+	p)	PETALS=1;;
+	P)	PREZBO=1;;
+	r)	ROOT=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+do1() {
+    if [ $LOOPS = 1 ]; then
+	echo "$1" |
+	    tr 0123456789 1000001021 |
+	    sed -e "s/./& + /g" -e "s/+ \$//" | bc
+    elif [ $LOOPS = 2 ]; then
+	echo "$1" |
+	    tr 0123456789 1000101021 |
+	    sed -e "s/./& + /g" -e "s/+ \$//" | bc
+    elif [ $PETALS = 1 ]; then
+	echo "$1" |
+	    tr 0123456789 0002040000 |
+	    sed -e "s/./& + /g" -e "s/+ \$//" | bc
+    elif [ $PREZBO = 1 ]; then
+	echo "$1" |
+	    tr 0123456789 5987604321
+    elif [ $MULT = 1 ]; then
+	echo "$1" | sed -e "s/./& * /g" -e "s/* \$//" | bc
+    else
+	echo "$1" | sed -e "s/./& + /g" -e "s/+ \$//" | bc
+    fi
+}
+doit() {
+    i=`echo $1 | tr -d -- "-,.\302\260"`
+    if [ "$i" = "" ]; then return; fi
+    a=0
+    # do the length because "test" does not work with, say,
+    # 55555555555555557777777777777 (integer expression expected!)
+    len=`expr length "$i"`
+    if [ $len -le 1 ]; then
+	if [ $MULT = 1 -a "$i" = 0 ]; then
+	    echo 0
+	    return
+	fi
+	if [ $ADD = 1 -a "$i" -lt 10 ]; then
+	    echo 0
+	    return
+	fi
+    fi
+    if [ $ROOT = 1 ]; then
+	while true; do
+	    x=`do1 $i`
+	    a=`expr $a + 1`
+	    case "$x" in
+	    [0-9])
+		if [ $ADD = 0 -a $MULT = 0 ]; then
+		    echo $x
+		else
+		    echo $a
+		fi
+		break;;
+	    esac
+	    i=$x
+	done
+    else
+	do1 $i
+    fi
+}
+
+if [ $# = 0 ]; then
+    while read i; do
+	doit $i
+    done
+else
+    for i in $*;do
+	doit $i
+    done
+fi

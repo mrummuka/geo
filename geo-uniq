@@ -1,0 +1,71 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - unique the tabsep database
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file]
+
+DESCRIPTION
+    Unique the tabsep database based on GC codes.  Last one wins.
+    Used for update-caches in the incremental mode.  This is for
+    people who updated the coordinates for a cache.
+
+EXAMPLES
+    Usage:
+
+	geo-uniq ~/Caches/rick.ts > rick.ts
+	mv rick.ts ~/Caches/rick.ts
+
+OPTIONS
+    -D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+awk -F'	' '
+{
+    contents[$2] = $0
+}
+END {
+    for (i in contents)
+    {
+	print contents[i]
+    }
+}' $* | sort -n

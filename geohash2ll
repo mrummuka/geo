@@ -1,0 +1,120 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Decode a geohash into lat/lon
+
+SYNOPSIS
+    `basename $PROGNAME` [options] geohash ...
+
+DESCRIPTION
+    Decode a geohash into lat/lon.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLES
+    Decode:
+
+	$ geohash2ll dnr7r3h1c254 u4pruydqqvj
+	dnr7r3h1c254    35.733333 -79.480533    n35.44.000 w79.28.832
+	u4pruydqqvj     57.649111 10.407440     n57.38.947 e10.24.446
+
+SEE ALSO
+    http://en.wikipedia.org/wiki/Geohash
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+decode() {
+    awk -v hash=$1 '
+    function abs(x)         { return (x>=0) ? x : -x }
+    function refine_interval(interval, cd, mask) {
+        if (and(cd, mask) )
+	    interval[0] = (interval[0] + interval[1])/2;
+	else
+	    interval[1] = (interval[0] + interval[1])/2;
+    }
+    function decodeGeoHash(geohash) {
+        is_even = 1;
+        lat[0] = -90.0;  lat[1] = 90.0;
+        lon[0] = -180.0; lon[1] = 180.0;
+        lat_err = 90.0;  lon_err = 180.0; 
+
+        for (i = 0; i < length(geohash); i++)
+	{
+                c = substr(geohash, i+1, 1)
+                cd = index(BASE32, c) - 1
+                for (j = 0; j < 5; j++)
+		{
+                        mask = BITS[j]
+                        if (is_even) {
+                                lon_err /= 2;
+                                refine_interval(lon, cd, mask);
+                        } else {
+                                lat_err /= 2;
+                                refine_interval(lat, cd, mask);
+                        }
+                        is_even = !is_even;
+                }
+        }
+        lat[2] = (lat[0] + lat[1])/2;
+        lon[2] = (lon[0] + lon[1])/2;
+
+	printf "%s	%f %f", geohash, lat[2], lon[2]
+	ilat = int(lat[2]); ilon = int(lon[2])
+	printf "\t%s%d.%06.3f %s%d.%06.3f", \
+	    lat[2] >= 0.0 ? "n" : "s", abs(ilat), abs(lat[2]-ilat) * 60, \
+	    lon[2] >= 0.0 ? "e" : "w", abs(ilon), abs(lon[2]-ilon) * 60
+	printf "\n"
+        # return { latitude: lat, longitude: lon};
+    }
+    BEGIN {
+	BITS[0] = 16; BITS[1] = 8; BITS[2] = 4; BITS[3] =  2; BITS[4] = 1
+	BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
+	decodeGeoHash( tolower(hash) )
+    }
+    '
+}
+
+#
+#	Main Program
+#
+for i in $*; do
+    decode $i
+done

@@ -1,0 +1,251 @@
+# DO NOT EDIT!!! Produced by geo-cs-html2db
+12	.af	.afg	afghanistan
+272	.ax	.ala	aland\ islands
+244	.al	.alb	albania
+14	.dz	.dza	algeria
+245	.as	.asm	american\ samoa
+16	.ad	.and	andorra
+17	.ao	.ago	angola
+246	.ai	.aia	anguilla
+18	.aq	.ata	antarctica
+13	.ag	.atg	antigua\ and\ barbuda
+19	.ar	.arg	argentina
+15	.am	.arm	armenia
+20	.aw	.abw	aruba
+3	.au	.aus	australia
+227	.at	.aut	austria
+21	.az	.aze	azerbaijan
+23	.bs	.bhs	bahamas
+29	.bh	.bhr	bahrain
+24	.bd	.bgd	bangladesh
+25	.bb	.brb	barbados
+40	.by	.blr	belarus
+4	.be	.bel	belgium
+31	.bz	.blz	belize
+26	.bj	.ben	benin
+27	.bm	.bmu	bermuda
+30	.bt	.btu	bhutan
+32	.bo	.bol	bolivia
+279	.bq	.bes	bonaire,\ sint\ eustatius\ and\ saba
+234	.ba	.bih	bosnia\ and\ herzegovina
+33	.bw	.bwa	botswana
+247	.bv	.bvt	bouvet\ island
+34	.br	.bra	brazil
+248	.io	.iot	british\ indian\ ocean\ territory
+39	.vg	.vgb	british\ virgin\ islands
+36	.bn	.brn	brunei
+37	.bg	.bgr	bulgaria
+216	.bf	.bfa	burkina\ faso
+35	.bi	.bdi	burundi
+239	.cv	.cpv	cabo\ verde
+42	.kh	.khm	cambodia
+43	.cm	.cmr	cameroon
+5	.ca	.can	canada
+44	.ky	.cym	cayman\ islands
+46	.cf	.caf	central\ african\ republic
+249	.td	.tcd	chad
+6	.cl	.chl	chile
+47	.cn	.chn	china
+250	.cx	.cxr	christmas\ island
+251	.cc	.cck	cocos\ islands
+49	.co	.col	colombia
+50	.km	.com	comoros
+51	.cg	.cog	congo
+48	.ck	.cok	cook\ islands
+52	.cr	.cri	costa\ rica
+100	.ci	.civ	cote\ d\ ivoire
+53	.hr	.hrv	croatia
+238	.cu	.cub	cuba
+54	.cw	.cuw	curacao
+55	.cy	.cyp	cyprus
+56	.cz	.cze	czechia
+257	.cd	.cod	democratic\ republic\ of\ the\ congo
+57	.dk	.dnk	denmark
+58	.dj	.dji	djibouti
+59	.dm	.dma	dominica
+60	.do	.dom	dominican\ republic
+61	.ec	.ecu	ecuador
+63	.eg	.egy	egypt
+64	.sv	.slv	el\ salvador
+62	.gq	.gnq	equatorial\ guinea
+65	.er	.eri	eritrea
+66	.ee	.est	estonia
+67	.et	.eth	ethiopia
+69	.fk	.flk	falkland\ islands
+68	.fo	.fro	faroe\ islands
+71	.fj	.fji	fiji
+72	.fi	.fin	finland
+73	.fr	.fra	france
+70	.gf	.guf	french\ guiana
+74	.pf	.pyf	french\ polynesia
+253	.tf	.atf	french\ southern\ and\ antarctic\ territories
+75	.ga	.gab	gabon
+76	.gm	.gmb	gambia
+78	.ge	.geo	georgia
+79	.de	.deu	germany
+254	.gh	.gha	ghana
+80	.gi	.gib	gibraltar
+82	.gr	.grc	greece
+83	.gl	.grl	greenland
+81	.gd	.grd	grenada
+77	.gp	.glp	guadeloupe
+229	.gu	.gum	guam
+84	.gt	.gtm	guatemala
+86	.gg	.ggy	guernsey
+255	.gn	.gin	guinea
+85	.gw	.gnb	guinea-bissau
+87	.gy	.guy	guyana
+89	.ht	.hti	haiti
+256	.hm	.hmd	heard\ island\ and\ mcdonald\ islands
+90	.hn	.hnd	honduras
+91	.hk	.hkg	hong\ kong
+92	.hu	.hun	hungary
+93	.is	.isl	iceland
+94	.in	.ind	india
+95	.id	.idn	indonesia
+96	.ir	.irn	iran
+97	.iq	.irq	iraq
+7	.ie	.irl	ireland
+243	.im	.imn	isle\ of\ man
+98	.il	.isr	israel
+99	.it	.ita	italy
+101	.jm	.jam	jamaica
+104	.jp	.jpn	japan
+102	.je	.jey	jersey
+103	.jo	.jor	jordan
+106	.kz	.kaz	kazakhstan
+107	.ke	.ken	kenya
+109	.ki	.kir	kiribati
+241	.kw	.kwt	kuwait
+108	.kg	.kgz	kyrgyzstan
+110	.la	.lao	laos
+111	.lv	.lva	latvia
+113	.lb	.lbn	lebanon
+114	.ls	.lso	lesotho
+115	.lr	.lbr	liberia
+112	.ly	.lby	libya
+116	.li	.lie	liechtenstein
+117	.lt	.lyu	lithuania
+8	.lu	.lux	luxembourg
+258	.mo	.mac	macao
+125	.mk	.mkd	macedonia
+119	.mg	.mdg	madagascar
+129	.mw	.mwi	malawi
+121	.my	.mys	malaysia
+124	.mv	.mdv	maldives
+127	.ml	.mli	mali
+128	.mt	.mlt	malta
+240	.mh	.mhl	marshall\ islands
+122	.mq	.mtq	martinique
+123	.mr	.mrt	mauritania
+134	.mu	.mus	mauritius
+259	.yt	.myt	mayotte
+228	.mx	.mex	mexico
+242	.fm	.fsm	micronesia
+237	.md	.mda	moldova
+130	.mc	.mco	monaco
+131	.mn	.mng	mongolia
+274	.me	.mne	montenegro
+135	.ms	.msr	montserrat
+132	.ma	.mar	morocco
+133	.mz	.moz	mozambique
+136	.mm	.mmr	myanmar
+137	.na	.nam	namibia
+138	.nr	.nru	nauru
+140	.np	.npl	nepal
+141	.nl	.nld	netherlands
+148	.an	.ant	netherlands\ antilles
+41	.nc	.ncl	new\ caledonia
+9	.nz	.nzl	new\ zealand
+144	.ni	.nic	nicaragua
+143	.ne	.ner	niger
+145	.ng	.nga	nigeria
+149	.nu	.niu	niue
+260	.nf	.nfk	norfolk\ island
+146	.kp	.prk	north\ korea
+236	.mp	.mnp	northern\ mariana\ islands
+147	.no	.nor	norway
+150	.om	.omn	oman
+151	.pk	.pak	pakistan
+261	.pw	.plw	palau
+276	.ps	.pse	palestine
+152	.pa	.pan	panama
+156	.pg	.png	papua\ new\ guinea
+262	.py	.pry	paraguay
+153	.pe	.per	peru
+154	.ph	.phl	philippines
+155	.pn	.pcn	pitcairn
+158	.pl	.pol	poland
+159	.pt	.prt	portugal
+226	.pr	.pri	puerto\ rico
+160	.qa	.qat	qatar
+161	.re	.reu	reunion
+162	.ro	.rom	romania
+163	.ru	.rus	russia
+164	.rw	.rwa	rwanda
+169	.bl	.blm	saint\ barthelemy
+171	.sh	.shn	saint\ helena
+264	.kn	.kna	saint\ kitts\ and\ nevis
+173	.lc	.lca	saint\ lucia
+174	.mf	.maf	saint\ martin
+175	.pm	.spm	saint\ pierre\ and\ miquelon
+177	.vc	.vct	saint\ vincent\ and\ the\ grenadines
+217	.ws	.wsm	samoa
+183	.sm	.smr	san\ marino
+176	.st	.stp	sao\ tome\ and\ principe
+280	.gg		sark
+166	.sa	.sau	saudi\ arabia
+167	.sn	.sen	senegal
+222	.rs	.srb	serbia
+168	.sc	.syc	seychelles
+178	.sl	.sle	sierra\ leone
+179	.sg	.sgp	singapore
+281	.mf	.maf	sint\ maarten
+182	.sk	.svk	slovakia
+181	.si	.svn	slovenia
+184	.sb	.slb	solomon\ islands
+185	.so	.som	somalia
+165	.za	.zaf	south\ africa
+267	.gs	.sgs	south\ georgia\ and\ the\ south\ sandwich\ islands
+180	.kr	.kor	south\ korea
+278	.ss	.ssd	south\ sudan
+186	.es	.esp	spain
+187	.lk	.lka	sri\ lanka
+188	.sd	.sdn	sudan
+189	.sr	.sur	suriname
+268	.sj	.sjm	svalbard\ and\ jan\ mayen\ islands
+190	.sz	.swz	swaziland
+10	.se	.swe	sweden
+192	.ch	.che	switzerland
+193	.sy	.syr	syria
+194	.tw	.twn	taiwan
+195	.tj	.tjk	tajikistan
+196	.tz	.tza	tanzania
+198	.th	.tha	thailand
+252	.tl	.tls	timor-leste
+200	.tg	.tgo	togo
+269	.tk	.tkl	tokelau
+201	.to	.ton	tonga
+202	.tt	.tto	trinidad\ and\ tobago
+203	.tn	.tun	tunisia
+204	.tr	.tur	turkey
+199	.tm	.tkm	turkmenistan
+197	.tc	.tca	turks\ and\ caicos\ islands
+205	.tv	.tuv	tuvalu
+208	.ug	.uga	uganda
+207	.ua	.ukr	ukraine
+206	.ae	.are	united\ arab\ emirates
+11	.uk	.gbr	united\ kingdom
+210	.uy	.ury	uruguay
+270	.um	.umi	us\ minor\ outlying\ islands
+235	.vi	.vir	us\ virgin\ islands
+211	.uz	.uzb	uzbekistan
+212	.vu	.vut	vanuatu
+213	.va	.vat	vatican\ city\ state
+214	.ve	.ven	venezuela
+215	.vn	.vnm	vietnam
+218	.wf	.wlf	wallis\ and\ futuna\ islands
+271	.eh	.esh	western\ sahara
+220	.ye	.yem	yemen
+224	.zm	.zmb	zambia
+225	.zw	.zwe	zimbabwe

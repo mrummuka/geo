@@ -1,0 +1,146 @@
+#!/usr/bin/python
+# vim: set expandtab:
+from __future__ import division
+from itertools import permutations
+from re import findall
+import sys
+import getopt
+if sys.version < '3':
+    from string import maketrans
+
+man = """NAME
+    geo-alphametic - solve a math puzzle in which letters stand for digits
+
+SYNOPSIS
+    geo-alphametic [options] 'string'
+
+DESCRIPTION
+    The four basic operators (+ - * /) and exponentiation (**) are understood.
+    Assignment is with double equals (==). A single equals (=) is converted
+    to double equals. Likewise, exponentiation with a caret (^) is converted
+    to double star (**).  This is because its a python script instead of
+    everything (C, awk, perl, ...) else!
+
+OPTIONS
+    -1          Use 1-9 instead of 0-9
+    -D  lvl     Debug level [0]
+
+EXAMPLE
+    Subtraction:
+
+	$ geo-alphametic 'hscoocoh - ddsgooc0 = oifidsh'
+	hscoocoh - ddsgooc0 == oifidsh
+	83255258 - 77305520 == 5949738
+	83255258 - 77345520 == 5909738
+
+    Long Division (GC369B3):
+
+	for i in 1 2 3 4 5 6 7 8 9; do
+	    for j in 1 2 3 4 5 6 7 8 9; do
+		geo-alphametic "infirmity/rummy == iris+(${i}${j}rou/rummy)"
+	    done
+	done
+	for i in 1 2 3 4 5 6 7 8 9; do
+	    geo-alphametic "interests/store == none+(${i}srst/store)"
+	done
+
+SEE ALSO
+    http://www.math.ubc.ca/~israel/applet/metic/metic.html
+    http://code.activestate.com/recipes/576615-alphametics-solver/
+"""
+
+def solve(s, zero):
+    '''Find solutions to alphametic equations.
+
+    >>> solve('SEND + MORE == MONEY')
+    9567 + 1085 == 10652
+
+    '''
+    words = findall('[A-Za-z]+', s)
+    chars = set(''.join(words))         # characters to be substituted
+    assert len(chars) <= 10             # there are only ten possible digits
+    firsts = set(w[0] for w in words)   # first letters of each of word
+    chars = ''.join(firsts) + ''.join(chars - firsts)   
+    n = len(firsts)                     # chars[:n] cannot be assigned zero
+    if zero:
+        perms = '0123456789'
+    else:
+        perms = '123456789'
+    for perm in permutations(perms, len(chars)):
+        if '0' not in perm[:n]:
+            if sys.version < '3':
+                trans = maketrans(chars, ''.join(perm))
+            else:
+                trans = str.maketrans(chars, ''.join(perm))
+            equation = s.translate(trans)
+            try:
+                if eval(equation):
+                    print(equation)
+            except ArithmeticError:
+                pass
+
+global Zero
+global Debug
+Zero = 1
+Debug = 0
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "1D:?h", ["debug="])
+except getopt.GetoptError:
+    usage()
+for opt, arg in opts:
+    if opt == '-D':
+        Debug = int(arg)
+    elif opt == '-?' or opt == '-h':
+        print(man)
+        sys.exit(0)
+    elif opt == '-1':
+        Zero = 0
+
+if len(args) == 0:
+    print(man)
+    sys.exit(0)
+elif len(args) >= 1:
+    import re
+    args[0] = re.sub(r'([^=])=([^=])', r'\1==\2', args[0])
+    args[0] = re.sub(r'\^', '**', args[0])
+    print(args[0])
+    solve(args[0], Zero)
+    sys.exit(0)
+
+for alphametic in [
+        'tyoe + zpsy == zpoya',
+        'oifidsh - odidibf == bobhcf',
+        'hscoocoh - ddsgooc0 == oifidsh',
+        'HSCOOCOH / IPPSBI == HP',
+        'SEND + MORE == MONEY',
+        'VIOLIN * 2 + VIOLA == TRIO + SONATA',
+        'SEND + A + TAD + MORE == MONEY',
+        'ZEROES + ONES == BINARY',
+        'DCLIZ + DLXVI == MCCXXV',
+        'COUPLE + COUPLE == QUARTET',
+        'FISH + N + CHIPS == SUPPER',
+        'SATURN + URANUS + NEPTUNE + PLUTO == PLANETS',
+        'EARTH + AIR + FIRE + WATER == NATURE',
+        ('AN + ACCELERATING + INFERENTIAL + ENGINEERING + TALE + ' +
+            'ELITE + GRANT + FEE + ET + CETERA == ARTIFICIAL + INTELLIGENCE'),
+        'TWO * TWO == SQUARE',
+        'HIP * HIP == HURRAY',
+        'PI * R ** 2 == AREA',
+        'NORTH / SOUTH == EAST / WEST',
+        'NAUGHT ** 2 == ZERO ** 3',
+        'I + THINK + IT + BE + THINE == INDEED',
+        'DO + YOU + FEEL == LUCKY',
+        'NOW + WE + KNOW + THE == TRUTH',
+        'SORRY + TO + BE + A + PARTY == POOPER',
+        'SORRY + TO + BUST + YOUR == BUBBLE',
+        'STEEL + BELTED == RADIALS',
+        'ABRA + CADABRA + ABRA + CADABRA == HOUDINI',
+        'I + GUESS + THE + TRUTH == HURTS',
+        'LETS + CUT + TO + THE == CHASE',
+        'THATS + THE + THEORY == ANYWAY',
+        '1/(2*X-Y) == 1',        
+    ]:
+    print(alphametic)
+    solve(alphametic, 1)
+    print

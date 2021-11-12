@@ -1,0 +1,161 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert balanced-ternary to/from decimal
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [ternary] ...
+
+DESCRIPTION
+    Converts balanced-ternary to/from decimal.  Can use command line
+    arguments or read from stdin.
+
+    When converting to decimal, the following letters work:
+
+	MINUS	ZERO	PLUS
+	-----	----	----
+	-	0	+	Normal
+	T	0	1	Wikipedia page
+	M	Z	P	M is MINUS, Z is ZERO, P is PLUS
+	Z	M	C	rot-13 of the above
+
+OPTIONS
+    -e		Encode decimal to balanced-ternary
+    -D lvl	Debug level
+
+EXAMPLES
+    Convert to decimal, in rot13 and +0-:
+
+	$ balanced-ternary CZCMCCCMMZCZZZMZMCCMMZ +-+0+++00-+---0-0++00-
+	8321925851
+	8321925851
+
+    Convert from decimal:
+
+	$ balanced-ternary -e  0 1 2 3 4 5 16 -436 523
+	0
+	+
+	+-
+	+0
+	++
+	+--
+	+--+
+	-++-0--
+	+-0++0+
+
+SEE ALSO
+    https://en.wikipedia.org/wiki/Balanced_ternary
+
+    http://rosettacode.org/wiki/Balanced_ternary
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ENCODE=0
+while getopts "eD:h?" opt
+do
+	case $opt in
+	e)	ENCODE=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+bt_int()
+{
+    awk '
+    function bt_int(b,		n, c, rot13)
+    {
+	n = 0
+	rot13 = match(b, "[C]")
+	for (i = 1; i <= length(b); ++i)
+	{
+	    n *= 3
+	    c = substr(b, i, 1)
+	    if (c == "+") ++n
+	    if (c == "C") ++n
+	    if (c == "P") ++n
+	    if (c == "1") ++n
+	    if (c == "-") --n
+	    if (rot13 && c == "Z") --n
+	    if (!rot13 && c == "M") --n
+	    if (c == "T") --n
+	}
+	return n
+    }
+    {
+	print bt_int($0)
+    }
+    '
+}
+
+int_bt()
+{
+    awk '
+    function int_bt(n,		rc, neg)
+    {
+	if (n == 0) return "0"
+	if (n < 0) { neg=1; n = -n }
+	rc == ""
+	while (n != 0)
+	{
+	    if (neg)
+		rc = substr("0-+", n%3+1, 1) rc
+	    else
+		rc = substr("0+-", n%3+1, 1) rc
+	    n = int(n / 3) + (n%3 == 2)
+	}
+	return rc
+    }
+    {
+	print int_bt($0)
+    }
+    '
+}
+
+#
+#	Main Program
+#
+if [ "$ENCODE" = 0 ]; then
+    if [ $# != 0 ]; then
+	for i in $*; do
+	    echo "$i" | bt_int
+	done
+    else
+	cat | bt_int
+    fi
+else
+    if [ $# != 0 ]; then
+	for i in $*; do
+	    echo "$i" | int_bt
+	done
+    else
+	cat | int_bt
+    fi
+fi
+#echo "+-+0+++00-+---0-0++00-" |

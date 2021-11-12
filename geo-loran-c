@@ -1,0 +1,115 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Brute force solve of Loran-C problems
+
+SYNOPSIS
+    `basename $PROGNAME` [options] lata lona latb lonb latc lonc NSa NSb NSc
+
+DESCRIPTION
+    Brute force solve of Loran-C problems
+
+OPTIONS
+    -x delta	Delta X [$XDELTA]
+    -y delta	Delta Y [$YDELTA]
+    -D lvl	Debug level
+
+EXAMPLE
+    # http://coord.info/GC34FYA
+
+	    $ geo-loran-c n44.52.351 w93.30.996 \\
+		n44.52.300 w93.30.930 \\
+		n44.52.413 w93.30.915 \\
+		-119.970997 -52.8685748 +172.839572
+	    44.872560 -93.515775
+	    44.52.354 -93.30.947
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+XDELTA=1000
+YDELTA=1000
+while getopts "x:y:D:h?" opt
+do
+	case $opt in
+	x)	XDELTA="$OPTARG";;
+	y)	YDELTA="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# != 9 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+
+awk -v LATa=$1 -v LONa=$2 -v LATb=$3 -v LONb=$4 -v LATc=$5 -v LONc=$6 \
+    -v NSa=$7 -v NSb=$8 -v NSc=$9 -v XDELTA=$XDELTA -v YDELTA=$YDELTA '
+function hypot(a, b) { return sqrt(a*a + b*b) }
+function dist(x1, y1, x2, y2) { return hypot(x1-x2, y1-y2) }
+function abs(x) { return (x>=0) ? x : -x }
+BEGIN {
+    bestx = 0; besty = 0; minerr = 1e10
+    command = sprintf("ll2utm -- %s %s", LATa, LONa); command | getline
+    zone = $1; nz = $2; xa = $3; ya = $4
+    command = sprintf("ll2utm -- %s %s", LATb, LONb); command | getline
+    zone = $1; nz = $2; xb = $3; yb = $4
+    command = sprintf("ll2utm -- %s %s", LATc, LONc); command | getline
+    zone = $1; nz = $2; xc = $3; yc = $4
+    dxa = NSa * .299792
+    dxb = NSb * .299792
+    dxc = NSc * .299792
+    for (x = xa-XDELTA; x < xa+XDELTA; ++x)
+	for (y = ya-YDELTA; y < ya+YDELTA; ++y)
+	{
+	    da = dist(x, y, xa, ya)
+	    db = dist(x, y, xb, yb)
+	    dc = dist(x, y, xc, yc)
+	    ea = db + dxa - da
+	    eb = dc + dxb - db
+	    ec = da + dxc - dc
+	    err = ea*ea + eb*eb + ec*ec
+	    if (err < minerr)
+	    {
+		minerr = err
+                bestx = x
+                besty = y
+	    }
+	}
+    #printf("%d %d %f\n", bestx, besty, minerr)
+    command = sprintf("utm2ll -- %s %s %s %s", zone, nx, bestx, besty)
+    command | getline; lat = $1; lon = $2
+    printf("%f %f\n", lat, lon)
+    ilat = int(lat); ilon = int(lon)
+    printf "%s%d.%06.3f %s%d.%06.3f\n", \
+	lat >= 0.0 ? "n" : "s", abs(ilat), abs(lat-ilat) * 60, \
+	lon >= 0.0 ? "e" : "w", abs(ilon), abs(lon-ilon) * 60
+}'

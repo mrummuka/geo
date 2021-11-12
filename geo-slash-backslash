@@ -1,0 +1,117 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Decrypt slashes and backslashes a.k.a Tomtom code
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [tomtom-code]
+
+DESCRIPTION
+    Decrypt a language of slashes and backslashes from stdin or command line.
+    Also known as Tomtom code.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Decode https://coord.info/GC6H43V :
+
+	$ geo-slash-backslash < GC6H43V.txt
+	the cache is located at north twenty seven degrees twelve point six
+	hundred ten and west zero eighty degrees forty seven point nine hundred
+	twenty eight
+
+    Decode from the command line:
+
+	$ geo-slash-backslash '\\/\ /\\ /\   /// / /// /\\ /\   /\\\ \/\'
+	the cache is
+
+SEE ALSO
+    http://www.geocachingtoolbox.com/index.php?lang=en&page=codeTables&id=tomTomCode
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+# language with v caret slash backslash	\\/\ /\\ /\  
+#
+doit() {
+    sed -e 's/   /ZspaceZ/g' | tr ' Z' '\n\n' |
+    awk '
+    /^space$/ { printf " "; next }
+    /^\/$/ { printf "a"; next }
+    /^\/\/$/ { printf "b"; next }
+    /^\/\/\/$/ { printf "c"; next }
+    /^\/\/\/\/$/ { printf "d"; next }
+    /^\/\\$/ { printf "e"; next }
+    /^\/\/\\$/ { printf "f"; next }
+    /^\/\/\/\\$/ { printf "g"; next }
+    /^\/\\\\$/ { printf "h"; next }
+    /^\/\\\\\\$/ { printf "i"; next }
+    /^\\\/$/ { printf "j"; next }
+    /^\\\\\/$/ { printf "k"; next }
+    /^\\\\\\\/$/ { printf "l"; next }
+    /^\\\/\/$/ { printf "m"; next }
+    /^\\\/\/\/$/ { printf "n"; next }
+    /^\/\\\/$/ { printf "o"; next }
+    /^\/\/\\\/$/ { printf "p"; next }
+    /^\/\\\\\/$/ { printf "q"; next }
+    /^\/\\\/\/$/ { printf "r"; next }
+    /^\\\/\\$/ { printf "s"; next }
+    /^\\\\\/\\$/ { printf "t"; next }
+    /^\\\/\/\\$/ { printf "u"; next }
+    /^\\\/\\\\$/ { printf "v"; next }
+    /^\/\/\\\\$/ { printf "w"; next }
+    /^\\\\\/\/$/ { printf "x"; next }
+    /^\\\/\\\/$/ { printf "y"; next }
+    /^\/\\\/\\$/ { printf "z"; next }
+    {
+	if ($0 != "")
+	    print
+    }
+    END {
+	printf "\n"
+    }
+    '
+    }
+if [ $# = 0 ]; then
+    doit
+else
+    echo "$*" | doit
+fi

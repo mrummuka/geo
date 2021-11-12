@@ -1,0 +1,2164 @@
+2018-11-09      Rick Richardson <rick.richardson@comcast.net>
+	* anybase2anybase: Add -k and -K flags
+
+2018-11-09      Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: GC.com changed protocol. Change: 
+		    -d ctl00\$ContentBody\$btnGPXDL="GPX+File" \
+		To:
+		    -d __EVENTTARGET=ctl00\$ContentBody\$lnkGpxDownload \
+
+2018-10-13      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: GC.com changed protocol.
+		In gc-login, change:
+			Username
+		To:
+			UsernameOrEmail
+
+2018-09-29      Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Change the default to -a leaflet
+		This is because Google Maps recently puts:
+		    "For development purposes only"
+		on a map if you don't have an API Key.
+	* geo-map: Add GMAP_KEY to the ~/.georc file in case you want to pay
+		for google maps. Use MAPSRC=gmap in .georc.
+
+2018-09-16      Dylan Richardson <dylanjackrichardson@gmail.com>
+	* geo-map: Added Leaflet code, similar to -agmap.
+		geo-map -a50 OR geo-map -aleaflet
+
+2018-08-29      Rick Richardson <rick.richardson@comcast.net>
+	* New program: radio-orphan-annie: Radio Orphan Annie’s Decoder Ring
+
+2018-08-14      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:	GC.com changed protocol.
+		Change:
+		        URL="$GEOS/account/login"
+		To:
+			URL="$GEOS/account/signin"
+
+2018-04-12      Rick Richardson <rick.richardson@comcast.net>
+2018-10-23      Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Change -a gstatic to use an API key=xxx
+
+2018-10-13      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: GC.com changed protocol.
+		In gc-login, change:
+			Username
+		To:
+			UsernameOrEmail
+
+2018-09-29      Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Change the default to -a leaflet
+		This is because Google Maps recently puts:
+		    "For development purposes only"
+		on a map if you don't have an API Key.
+	* geo-map: Add GMAP_KEY to the ~/.georc file in case you want to pay
+		for google maps. Use MAPSRC=gmap in .georc.
+
+2018-09-16      Dylan Richardson <dylanjackrichardson@gmail.com>
+	* geo-map: Added Leaflet code, similar to -agmap.
+		geo-map -a50 OR geo-map -aleaflet
+
+2018-08-29      Rick Richardson <rick.richardson@comcast.net>
+	* New program: radio-orphan-annie: Radio Orphan Annie’s Decoder Ring
+
+2018-08-14      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:	GC.com changed protocol.
+		Change:
+		        URL="$GEOS/account/login"
+		To:
+			URL="$GEOS/account/signin"
+
+2018-04-12      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Add:
+		-d 'ctl00$ContentBody$uxDownloadLoc=Download+Waypoints'
+		to the "curl $URL #loc" for basic members.
+	* geo-common-gc: Basic members: do it the real slow way!
+
+2018-02-14      Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Additional Waypoints fixed due to GC.com changes
+
+2017-12-11      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common: GC.com changed protocol.
+		get_hidden_value: sometimes they are two, thus the "tail -1"
+
+2017-11-04      Rick Richardson <rick.richardson@comcast.net>
+	* tap-code: Added -6. Matrix is 6x6, A..Z and 0..9
+
+2017-10-25      Rick Richardson <rick.richardson@comcast.net>
+	* addletters: Implement umlauts and -u
+
+2017-05-14      tudado <creek@runbox.com>
+	* geo-html2gpx: Update XML declaration
+
+2017-04-28      tudado <creek@runbox.com>
+	* geo-common-gc: Synchronize patterns used to determine is it archived
+	    between gc_query() and getcids().  
+
+2017-04-20      Rick Richardson <rick.richardson@comcast.net>
+	* geo-id2gccode: convert integers up to i = 30
+
+2017-04-12      Rick Richardson <rick.richardson@comcast.net>
+	* Add FreeBSD
+
+2017-04-04      Rick Richardson <rick.richardson@comcast.net>
+	* geo-found: works for basic members.
+		(it always works for premium members!)
+
+2017-03-31      Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Change attribute AbandonedBuilding to abandonedbuilding
+
+2017-03-21      Rick Richardson <rick.richardson@comcast.net>
+	* geo-clock-angle: Compute the clock angle.
+			   You can give the time or the angle.
+
+2017-03-21      Rick Richardson <rick.richardson@comcast.net>
+	* geo-compare-images: Compare two images
+
+2017-03-08      Rick Richardson <rick.richardson@comcast.net>
+	* geo-login changed.  geo-nearest/geo-newest works for premium members.
+	* geo-login changed.  geo-nearest/geo-newest works for basic members.
+
+2017-02-28      Rick Richardson <rick.richardson@comcast.net>
+	* reverse-wherigo: Modify for six lengths of 6. (bflentje hack)
+
+2017-02-15      Rick Richardson <rick.richardson@comcast.net>
+	* geo-polygon: add -M Center of gravity (midpoint) with weights
+
+2017-01-23      Rick Richardson <rick.richardson@comcast.net>
+	* east and west confused when the location is near the meridian
+
+2016-11-23      Rick Richardson <rick.richardson@comcast.net>
+	* reverse-wherigo: Modify for lengths of 6 or 20
+
+2016-11-19	Rick Richardson <rick.richardson@comcast.net>
+	* adddigits: -m Multiplicative Persistance
+
+2016-11-13      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common: degdec2mindec n0/e0 or w0/e0 put the right symbol.
+
+2016-11-05      Rick Richardson <rick.richardson@comcast.net>
+	* tap-code: Added -u and -r
+
+2016-11-02      Rick Richardson <rick.richardson@comcast.net>
+	* geo-ocr: Do -l pig with two encodings
+
+2016-10-29      Rick Richardson <rick.richardson@comcast.net>
+	* urwigo-decode: Add &lt; &gt; and &amp; to earwigo
+
+2016-10-16      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Bug for GC.com changes:
+	    Next button s/disabled/Disabled/
+
+2016-10-05      Rick Richardson <rick.richardson@comcast.net>
+	* geo-pocket-query-newest: Bug for GC.com changes.
+
+2016-08-18      Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: removed ctrl-h from the output
+
+2016-07-11      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: logfiles not downloaded
+	    Bug for GC.com changes: More https instead of http ...
+
+2016-07-08      Rick Richardson <rick.richardson@comcast.net>
+	* geo-gid:
+	    Bug for GC.com changes: More https instead of http ...
+
+2016-06-27      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bookmarks ...
+	    Bug for GC.com changes: More https instead of http ...
+
+2016-06-21      Rick Richardson <rick.richardson@comcast.net>
+	* geo-fax: Add Decode a FAX using 0s and 1s.
+
+2016-06-17      Rick Richardson <rick.richardson@comcast.net>
+	* geo-text2numbers: Added -p pat 
+
+2016-06-08      Rick Richardson <rick.richardson@comcast.net>
+	* atomic-*: 113: Nihonium (Nh), 115: Moscovium (Mc),
+		    117: Tennessine (Ts), 118: Oganesson (Og)
+
+2016-05-28      Rick Richardson <rick.richardson@comcast.net>
+	* reverse-wherigo: Add Reverse Wherigo Decoder
+
+2016-05-19      Rick Richardson <rick.richardson@comcast.net>
+	* geo-myfinds:
+	    Bug for GC.com changes: More https instead of http ...
+
+2016-05-12      Rick Richardson <rick.richardson@comcast.net>
+	* geo-phone2word: Modify -c to include 2222=2, 3333=3, etc
+
+2016-05-11      Rick Richardson <rick.richardson@comcast.net>
+	* geo-map:
+	    https://code.google.com/p/google-maps-utility-library-v3/source/browse/trunk/styledmarker/src/StyledMarker.js
+	    does not exist anymore!
+	    So we make it #include from local copy of StyledMarker.js
+
+2016-04-29      Rick Richardson <rick.richardson@comcast.net>
+	* geo-phone2word: Add -a option
+
+2016-04-26      Rick Richardson <rick.richardson@comcast.net>
+	* geo-project: Add 'smoot' for distance
+
+2016-04-25      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:
+	    Bug for GC.com changes: More https instead of http ...
+
+2016-04-23      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-correct-coords.sh, geo-demand.sh, geo-pqdownload.sh:
+	    Bug for GC.com changes: Use https instead of http for
+	    fetching .loc info
+
+2016-04-02      Rick Richardson <rick.richardson@comcast.net>
+	* geo-sub: Add -c for circular rotation
+
+2016-03-31      Rick Richardson <rick.richardson@comcast.net>
+	* urwigo-decode: Add -v verbose to print the undeciphered string.
+
+2016-03-29      Rick Richardson <rick.richardson@comcast.net>
+	* urwigo-decode: Use gawk on Mac OSX
+
+2016-03-23	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patch TMS map tiles may be combined in the wrong order
+
+2016-03-17      Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Earth[cC]ache due to gc.com changes.
+
+2016-03-17       tudado <creek@runbox.com>
+	* geo-html2gpx: moved the namespace declaration from <groundspeak:cache>
+	* geo-html2gpx: Replace EarthCache to Earthcache due to Garmin
+
+2016-03-06      Rick Richardson <rick.richardson@comcast.net>
+	* navaho-code-talkers: Add -s
+
+2016-02-26      Rick Richardson <rick.richardson@comcast.net>
+	* geo-project: Use WGS-84 instead of International (1924)
+
+2016-02-20      Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: process stdin iff no args
+
+2016-02-16      Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: removed ctrl-b from the output
+
+2016-02-16	tudado <creek@runbox.com>
+	* geo-common-gc: changed the PMO cache page for basic members
+
+2016-01-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-incomplete-coords: Add really unique "-u -u" coords
+
+2016-01-22	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches for specialchars stuff
+
+2016-01-21	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches for tiger2cvt stuff
+	* geo-map: patches for a bar scale 
+
+2016-01-20	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches for min/max lat/lon values stuff
+
+2016-01-19	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches for DOGRID stuff
+	* geo-map: patches for use png instead of gif stuff
+	* geo-map: patches for have linefeeds in useful places stuff
+
+2016-01-10	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches for TMS stuff
+	* geo-map: patches for mapquest stuff
+	* geo-map: patches zoom levels, tilesize, more tms sources
+	* geo-map: patches for a bug
+
+2016-01-08	Steve8x8 <steve8x8@googlemail.com>
+	* geo-map: patches one for each maptype {expedia,osmstatic,osm,gstatic}
+	* geo-map: gstatic-hybrid gstatic-terrain gstatic-aerial
+
+2015-10-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: Change due to GC.com changes. Need wp=GCxxxx AND
+	    title=SomeCacheName !!!
+	    curl with -w "%{url_effective}\n" will work
+
+2015-09-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: bug in anchor.
+
+2015-09-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gid: Bug in gpsbabel thru 1.5.2.  Implement workaround.
+	    url=`echo "$url" | sed 's/.*http:/http:/g' `
+	* geo-html2gpx: Change due to GC.com changes. Anchor is now <a or <A
+
+2015-09-10	Rick Richardson <rick.richardson@comcast.net>
+	* New program:
+	    fibonacci-coding - Convert a binary coding to a number
+
+2015-08-25	Rick Richardson <rick.richardson@comcast.net>
+	* New program:
+	    geo-battleship - Map the geocheck.org battleship locations
+
+2015-08-25	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-rotate-text - Rotate text CW, CCW, or flip
+
+2015-08-08	Rick Richardson <rick.richardson@comcast.net>
+	* New programs:
+	    atomic-weights-to-text - Atomic Weights to text
+	    atomic-symbol-to-atomic-weights - Atomic Symbol to Atomic Weights
+
+2015-08-07	Rick Richardson <rick.richardson@comcast.net>
+	* decimal2cryptogram: New option: -s thing    Spaces are "thing"
+
+2015-07-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Bug in gpsbabel thru 1.5.2 with *.gpx.  Implement workaround.
+	    replace:
+		FIELD_DELIMITER         ^
+	    with:
+		FIELD_DELIMITER         |
+
+2015-07-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Bug in GC waypoints, DegDec instead of MinDec!
+
+2015-07-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Bug in gpsbabel thru 1.5.2.  Implement workaround.
+	    url=`echo "$url" | sed 's/.*http:/http:/g' `
+
+2015-06-24	Rick Richardson <rick.richardson@comcast.net>
+	* New program: spiritdvd2text - Spirit DVD Code to/from text
+
+2015-06-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: Option -N: Append numerical words (NORTH, ONE,
+	SIXTY, ...)
+
+2015-06-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: with -I, name the file with
+	    <gcid>-<num>-<name>.<suffix>
+
+2015-06-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add -I dir for downloading spoiler pictures.
+
+2015-04-30	Rick Richardson <rick.richardson@comcast.net>
+	* segment2text - N-Segment Display to text
+
+2015-04-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-text2numbers - grep for numbers in text
+
+2015-04-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-phone2word: Add rot13 for 0-9, etc.
+
+2015-03-31	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Login problem.  Remove --sslv3 from login curl.
+
+2015-03-26	Rick Richardson <rick.richardson@comcast.net>
+	* MacOS: replace "echo -n" with "printf" because echo doesn't have -n!
+
+2015-03-25	Rick Richardson <rick.richardson@comcast.net>
+	* geohash2ll: Added Decode a geohash into lat/lon
+	* ll2geohash: Added Encode lat/lon to geohash
+
+2015-03-16	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-morse - Morse decoder
+	* New program: geo-algebraic-expressions
+		- Solve a system of algebraic expressions
+
+2015-03-01	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: option -p: When -r, val = val / position
+
+2015-02-28	Rick Richardson <rick.richardson@comcast.net>
+	* New program: wherigo2jpg - Pull jpg images out of a wherigo file
+
+2015-02-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-polygon: add -t for special case triangles
+
+2015-01-31	Rick Richardson <rick.richardson@comcast.net>
+	* New program: Convert to/from negadecimal, negabinary, ...
+
+2015-01-28	Rick Richardson <rick.richardson@comcast.net>
+	* geo-polygon: add -m Midpoint from http://www.geomidpoint.com/
+
+2015-01-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-incomplete-coords: add -u for unique coords
+
+2015-01-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gccode2id: -g: Print out the gallery for unpublished caches
+
+2015-01-20	Rick Richardson <rick.richardson@comcast.net>
+	* bing2ll: Added Bing maps quadkey string to lat/lon.
+
+2015-01-20	Rick Richardson <rick.richardson@comcast.net>
+	* adddigits: -p count the petals around the rose
+
+2015-01-03	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-thumbnails - Recursively extract image thumbnails
+
+2014-12-27	Rick Richardson <rick.richardson@comcast.net>
+	* ggl2ll: Added google maps QRST string to lat/lon.
+
+2014-12-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Implement "line" for drawing a line
+
+2014-11-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add Uncorrected Coordinates to a waypoint.
+
+2014-11-12	Rick Richardson <rick.richardson@comcast.net>
+	* New program: decimal2cryptogram - Decimal to cryptogram
+	* New program: smilies2cryptogram - Geocaching 'smilies' to cryptogram
+
+2014-11-09	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-incomplete-coords - Print out incomplete
+	coordinates
+
+2014-11-06	Rick Richardson <rick.richardson@comcast.net>
+	* adddigits: -l/-L count circles/loops in a number
+	    "This problem can be solved by pre-school children in 5-10
+	    minutes, by programer – in 1 hour, by people with higher education
+	    … well, check it yourself!"
+
+2014-10-15	Rick Richardson <rick.richardson@comcast.net>
+	* geo-dist: When doing -v, compute bearing from Vincenty
+
+2014-09-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-gid, geo-html2gpx:
+	    Remove control character "^U"'s from the name of the cache
+
+2014-09-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-sub: Read from stdin, too.
+
+2014-09-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Add new date format DD.MM.YYYY
+
+2014-09-01	Rick Richardson <rick.richardson@comcast.net>
+	* Added braille2text: braille to text translator
+	* Added adddigits: add individual digits in a number
+
+2014-08-28	Rick Richardson <rick.richardson@comcast.net>
+	* gc-common-gc: adjust for GC.com changes w.r.t. Cache vs. Geocache
+	    Traditional Geocache is an alias for Traditional Cache
+
+2014-08-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add creator to <gpx> for buggy "qlandkartegt"
+	* geo-html2gpx: Get rid of NULs in the log entries
+	* geo-html2gpx: Turn 3 byte sequences 1E XX XX to "?" from logs
+
+2014-08-21	Rick Richardson <rick.richardson@comcast.net>
+	* Added tap-code: Tap Code or Polybius Square decoder
+
+2014-08-19	Rick Richardson <rick.richardson@comcast.net>
+	* Added osg2ll: British National Grid to Lat/Lon
+
+2014-08-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-phone2word: bug abc==2 22 222
+
+2014-08-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-coords: Add -a for antipod coords.
+
+2014-07-31	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: Use "long long" for multipication
+
+2014-07-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-phone2word: Add -c option: geo-phone2word -c 66 666 777 8 44
+
+2014-07-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: Print out overlapping characters
+
+2014-07-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-usernum: All new implemention
+
+2014-07-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add corrected coords to the <desc>
+
+2014-06-11	Rick Richardson <rick.richardson@comcast.net>
+	* gc-common-gc: adjust for GC.com changes w.r.t. Mystery vs Unknown
+	    Right now: Mystery is an alias for Unknown
+
+2014-06-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: gs_type: substitute Cache for Geocache
+
+2014-06-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Adjust ltype (e.g. Found it) in logs due to GC.com changes
+
+2014-06-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: translate type "Mystery Cache" into "Unknown Cache"
+
+2014-05-25	Rick Richardson <rick.richardson@comcast.net>
+	* New program: navaho-code-talkers
+
+2014-05-09	Rick Richardson <rick.richardson@comcast.net>
+	* New program: mayan-long-count
+
+2014-04-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-char-at: add midpoint
+
+2014-04-12	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: add -R for digital root.
+
+2014-04-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Bug with -b bookmark due to GC.com changes.
+
+2014-03-29	Rick Richardson <rick.richardson@comcast.net>
+	* Makefile: adjust for Cygwin (man pages utm/*.1)
+	* *.c: adjust for Cygwin
+
+2014-03-20	Rick Richardson <rick.richardson@comcast.net>
+	* gc-common-gc: adjust for GC.com changes wrt archived caches
+
+2014-02-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-triangulation: Bug. Use "--" before lat/long coords when S is
+	    specified
+
+2013-11-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch - Option -w/W to pull words out of
+		/usr/lib/geo/english.dic
+		/usr/share/dict/words
+	* geo-project: Use gawk on OSX
+
+2013-11-15	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: adjust for GC.com changes
+
+2013-11-11	Hans Lederer <hans.lederer@ib-lederer.de>
+	* addletters: add German scrabble weights
+
+2013-10-02	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-alphametic - solve a math puzzle ...
+
+2013-09-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-project: Add "fizzy" to units.
+
+2013-08-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Bug due to GC.com update.
+	    "state" was wrong. "gcid" is wrong; "diff" and "terr" was wrong
+	    "lat" and "lon" was wrong.
+
+2013-08-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx, geo-demand: Put in time stamp for attribute values.
+
+2013-08-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Readjust attributes due to GC.com changes, add geotour.
+	* geo-demand: Readjust usage of attributes to agree with GIF symbols.
+
+2013-08-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Readjust attributes due to GC.com changes, add geotour.
+	* geo-html2gpx: Readjust attributes due to GC.com changes, add geotour.
+
+2013-07-31	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Bug "[1-9]" should be "[0-9]" on the "Next" button
+
+2013-07-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-dist: Remove "Currency exchange rates from 2012-10-24 "
+
+2013-07-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Work with GC.com update
+
+2013-06-30	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-char-at - pick the char at position "n"
+
+2013-06-27	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-zipcode - Translate zip code to city and state
+
+2013-06-20	Hans Lederer <Hans.Lederer@ib-lederer.de>
+	* addletters: add -P option
+
+2013-06-13	tudado <a438@sedacon.com>
+	* geo-common-gc: Implement CACHE_CACHE_MAX_AGE
+
+2013-05-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Make the "Next" button immune to language in order
+	    break the loop.
+
+2013-05-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: add -b/-d options
+
+2013-05-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: -a gmap implement xhair et al
+
+2013-05-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: change default MAPSRC from "osm" to "gmap"
+
+2013-05-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch - Fix a bug with comments
+
+2013-04-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-intersect - Add point-bearing
+
+2013-04-21	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-sub - Do a substitution cipher for all shifts
+
+2013-04-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common: Fix an awk bug on Mac OS X
+
+2013-04-06	Rick Richardson <rick.richardson@comcast.net>
+	* New program: reverse-montage - reverse (split up) montage image
+
+2013-04-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: add -l/-u options, more than 1 on the word list
+
+2013-04-01	Rick Richardson <rick.richardson@comcast.net>
+	* New program: maidenhead2ll - Maidenhead (Grid Squares) to Lat/long
+
+2013-03-16	Rick Richardson <rick.richardson@comcast.net>
+	* New program: usng2ll - US National Grid to Lat/long
+
+2013-02-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-triangulation: make it work for 2 OR 3 points
+
+2013-01-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix in placed date due to GC.com
+
+2013-01-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqs: error if n=0!
+
+2013-01-10	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-crossword - Search for words in /usr/share/dict/words
+
+2013-01-04	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-triangulation - Compute a point by bearings
+
+2012-12-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-project: add mil or grad to bearing
+
+2012-12-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug in bookmark code due to the "noc-soc" change!
+
+2012-12-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Remove non-soc caches from basic member.
+	* geo-common-gc: username/password combination does not match.
+
+2012-12-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: Improve printing
+
+2012-12-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Remove non-soc caches from basic member.
+
+2012-12-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: Put a star in front of found words
+
+2012-10-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Add error:
+	    "Geocaching.com is temporarily down for maintenance."
+
+2012-10-12	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-polygon - Compute the centroid of a polygon.
+	* geo-newest: Add "as=1" to a country without a state parameter
+	    NOTE: does not work for United States!
+	* geo-pqdowload: add shopt -s extglob for -n "!(My*)"
+
+2012-10-05	Rick Richardson <rick.richardson@comcast.net>
+	* ll2utm: update for newer GC.com lat/lon
+
+2012-09-11	Rick Richardson <rick.richardson@comcast.net>
+	* New: ok-nearest: fetch opencaching.us caches. Name is from
+	    "The OKAPI Project", which I think stands for OpenKaching.
+	    Lots more options need to be implemented.
+	* http://www.opencaching.us
+	* http://www.opencaching.org.uk
+	* http://www.opencaching.de
+
+2012-09-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Disable 45 degree stuff.
+
+2012-09-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Add Google Maps lat/lon display.
+
+2012-08-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-firefox: Add -s option for Streetview
+
+2012-08-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: fix for owner name (GC.com update 07/24/12)
+
+2012-08-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-circles, geo-trilateration: improve output of MinDec.
+	* geo-wordsearch: Make work for numerical puzzles
+
+2012-08-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: Make subroutine for errors
+
+2012-08-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: Improved error messages.
+
+2012-08-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Change "You are logged in as" to
+	    "ctl00_ContentBody_LoggedInPanel"
+	* geo-gpx: Changed "<html " to "<gpx "
+
+2012-08-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: VIEWSTATE unlimited!
+
+2012-08-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: VIEWSTATE bump to 19
+
+2012-08-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Tweak attributes
+
+2012-07-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-wordsearch: Add -r for rot13
+
+2012-07-21	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-wordsearch - Perform a Word Search
+
+2012-07-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common: Add optional parm (ns or ew) to degdec2mindec
+	* geo-map: Use optional parm to degdec2mindec
+
+2012-07-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gpdrive/tangogps: Put in "PRAGMA synchronous=OFF;"
+
+2012-06-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: VIEWSTATE bump to 14
+
+2012-06-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-2tangogps: Set $TMP according to $DEBUG
+	* geo-2tangogps: add -X exclude option
+
+2012-05-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-project: change printf from %.3f to %06.3f
+
+2012-05-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug in recent curl/openssl:
+			    use "--sslv3" for a workaround
+
+2012-04-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Work with GC.com 04/24/12 update
+
+2012-03-29	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-id2gccode
+
+2012-03-29	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-loran-c
+
+2012-03-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: fix for Additonal Waypoints (GC.com update ???)
+	* geo-html2gpx: Fake gs_guid is user, not owner
+
+2012-02-27	Rick Richardson <rick.richardson@comcast.net>
+	* gpx-nearest: Add "cache-type" parameter.
+
+2012-02-21	Rick Richardson <rick.richardson@comcast.net>
+	* gpx-unfound: New program.
+
+2012-02-20	Rick Richardson <rick.richardson@comcast.net>
+	* gpx-logs: Add new option "-s"
+
+2012-02-14	Rick Richardson <rick.richardson@comcast.net>
+	* ll2usng: Convert lat/lon to US National Grid
+
+2012-02-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: GC codes are gc1234 *and* gc12345
+
+2012-02-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest: Implement -q search. i.e. -q unknown
+
+2012-02-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, et al: do archived caches with hash2sdt()
+
+2012-02-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: remove ^Q/^S characters
+	* geo-common-gc, et al: archived caches for basic members
+
+2012-02-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, et al: Make login case insignificant
+	* geo-common-gc, et al: Use dist=N on the radius GC queries
+	* geo-common-gc, et al: tx=unknown, etc. is an alias
+
+2012-01-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, et al: change temp styles to %.6f from %08.5f
+
+2012-01-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map -agmap: add circles
+
+2012-01-15	Rick Richardson <rick.richardson@comcast.net>
+	* lethist: from stdin OR command line
+
+2012-01-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Add state using lat lon; e.g. geo-demand mn n43.6 w92
+
+2012-01-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map -agmap: add tooltip(s)
+
+2012-01-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: remove soc's from basic member
+
+2012-01-05	Rick Richardson <rick.richardson@comcast.net>
+	* states.db, countries.db: update to GC current.
+
+2011-12-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: archived caches: don't use '\t\t'
+	* geo-common-gc: repair bookmark code if -n >= 21
+
+2011-12-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-dist: option -v for Vincenty formula
+
+2011-12-19	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-correct-coords
+
+2011-12-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: better ascii-8 to UTF-8 encoding
+
+2011-12-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: terr (GC.com 09/15/11 update)
+	* geo-html2gpx: unescape hex &xHH; (GC.com 09/15/11 update)
+	* geo-html2gpx: JSON format account id
+	* geo-html2gpx: logdate's in JSON format
+	* geo-common-gc: resurrect -b bookmark (GC.com 09/15/11 update)
+	* geo-common-gc: Add -q pq for searching by name of the PQ.
+
+2011-12-09	Rick Richardson <rick.richardson@comcast.net>
+	* gpx2html: Prepare for GPX 1.0.2
+
+2011-12-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: -l NNN for JSON format logbooks (GC.com 09/15/11 update)
+	* geo-html2gpx: umlauts for lfinder (GC.com 09/15/11 update)
+
+2011-11-28	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-nearest: resurrect geo-nearest guid=...
+
+2011-11-15	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: if argc==0, print out cheat sheet
+
+2011-11-10	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: add new option -S for Scrabble weights
+
+2011-11-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-nearest,newest,found,etc.:
+	    cvs2cvs add a "+" sign if it was in .geo-mystery
+
+2011-11-05	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: new option -0
+
+2011-10-06	Rick Richardson <rick.richardson@comcast.net>
+	* Work with GC.com 10/06/11 update:
+	    - change login from ...$SiteContent$... to ...$ContentBody$...
+
+2011-10-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-waypoint: make it work with gpsdrive 2.10+
+
+2011-09-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc.: If -H and non-subsciber,
+	    then do the logbooks with JSON
+	* geo-gid: use new gc_fetch_page() subroutine
+
+2011-09-16	Rick Richardson <rick.richardson@comcast.net>
+	* Work with GC.com 09/15/11 update:
+	    geo-gid, geo-nearest, etc.: If -H, then do the logbooks with JSON
+	    geo-html2gpx: New JSON format logbooks
+
+2011-09-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-2tangogps, geo-2gpsdrive: delete "|" out of tabsep format
+
+2011-09-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-2tangogps, geo-2gpsdrive: Improve performance in the inner loop
+	    Replace: name=`echo "$description" | tr -d "'"`
+	    With: name=${description//\'/}
+
+2011-09-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-count: Work with GC.com 08/18/11 update
+
+2011-08-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Log entry dates. Work with GC.com 08/24/11 update
+
+2011-08-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Log entry dates. Work with GC.com 08/19/11 update
+
+2011-08-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Log entry dates. Work with GC.com 08/18/11 update
+
+2011-08-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: code cleanup with placedt
+
+2011-08-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add additional log types.
+	* geo-html2gpx: Remove "^In " from country.
+	* geo-html2gpx: bug in "time", format yyyy-mm-dd
+
+2011-08-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-nearest,newest,found,etc.:
+	    Resurrect the -L logdir option which has been broken for a long
+	    time.
+
+2011-08-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand, geo-common-gc: Work with GC.com 08/02/11 update
+	* geo-html2gpx: Work with GC.com 08/02/11 update
+
+2011-07-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Work with GC.com 06/28/11 update
+	* geo-html2gpx: if DATEFMT=1 in .georc, parse dates with DD before MM
+	* geo-common-gc, geo-html2gpx: Add -E var=val
+
+2011-07-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: code cleanup with placedt
+	* geo-common-gc: if DATEFMT=1 in .georc, parse dates with DD before MM
+
+2011-07-12	Rick Richardson <rick.richardson@comcast.net>
+	* update-caches: with -i, delete all temp. disabled caches
+
+2011-07-03	Mike Robbins <jopeccen01@gmail.com>
+	* geo-demand: Changes for GC.com 05/04/11 update.
+
+2011-06-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gpsdrive: -P: Use SQLTAG to lower case on gpsdrive 2.10.
+
+2011-06-28	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Work with GC.com 06/28/11 update
+		(tdcnt is greater by 1)
+
+2011-06-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-trilateration: Add -f (Flat World)
+
+2011-06-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Bug with printf xtrafile
+
+2011-06-08	Rick Richardson <rick.richardson@comcast.net>
+	* oc-nearest/oc-newest: increase "num" about ten times for
+	    found and crosslisted caches
+
+2011-06-07	Rick Richardson <rick.richardson@comcast.net>
+	* nc-nearest, nc-newest, geo-common-nc: cleanup
+
+2011-06-06	Rick Richardson <rick.richardson@comcast.net>
+	* New program: nc-nearest: fetch navicache caches
+	* geo-nearest, etc., geo-common-gc: add geocache_placer
+
+2011-05-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Use gsed instead of sed on OSX.
+
+2011-05-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common: Add an error message to .georc wrt LAT/LON
+
+2011-05-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc:
+		Changes for GC.com 05/04/11 update for non-subscribers
+		Cleanup
+
+2011-05-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-placed: Changes for GC.com 05/04/11 update
+	* geo-nearest, etc., geo-common-gc: Changes for cygwin.
+	* geo-common-gc: set CURL_OPTS to -k (insecure) on Cygwin ONLY.
+
+2011-05-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdowload: Add -t option.
+
+2011-05-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc: Changes for GC.com 05/04/11 update
+
+2011-05-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc: Changes for GC.com 05/04/11 update
+
+2011-04-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2db: Changes for GC.com
+
+2011-04-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2db: Use gawk instead of awk on OSX
+
+2011-04-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug with -n (one too many),
+	    update -H for GC.com 02/01/11 changes
+
+2011-04-06	Rick Richardson <rick.richardson@comcast.net>
+2011-05-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc: make foundt == lastfoundt
+
+2011-05-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc:
+		Changes for GC.com 05/04/11 update for non-subscribers
+		Cleanup
+
+2011-05-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-placed: Changes for GC.com 05/04/11 update
+	* geo-nearest, etc., geo-common-gc: Changes for cygwin.
+	* geo-common-gc: set CURL_OPTS to -k (insecure) on Cygwin ONLY.
+
+2011-05-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdowload: Add -t option.
+
+2011-05-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc: Changes for GC.com 05/04/11 update
+
+2011-05-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, etc., geo-common-gc: Changes for GC.com 05/04/11 update
+
+2011-04-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2db: Changes for GC.com
+
+2011-04-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2db: Use gawk instead of awk on OSX
+
+2011-04-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug with -n (one too many),
+	    update -H for GC.com 02/01/11 changes
+
+2011-04-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug with basic member; use lnkConversions
+	* geo-common-gc: bug with basic member and -H
+	* geo-project: bearing in n, ne, etc.
+
+2011-04-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest: fix bug with gtouch for OSX
+	* Makefile: fix bug with sed for OSX
+
+2011-04-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Added -a aolterra, -a30  (really mapquest satellite).
+
+2011-03-31	Rick Richardson <rick.richardson@comcast.net>
+	* states.db, countries.db: update to GC current.
+
+2011-03-28	Rick Richardson <rick.richardson@comcast.net>
+	* oc-nearest/oc-newest: Bug fix.
+
+2011-03-27	Rick Richardson <rick.richardson@comcast.net>
+	* gpx2html: Bug fix in XMLTime2Time:
+	    Use of uninitialized value $y in concatenation (.) or string at
+	    /usr/share/perl5/Date/Manip/Base.pm line 2226.
+
+2011-03-22	Rick Richardson <rick.richardson@comcast.net>
+	* oc-nearest/oc-newest: Add -c (cross-listed caches)
+
+2011-03-21	Rick Richardson <rick.richardson@comcast.net>
+	* New: oc-nearest: fetch opencaching.com caches.
+
+2011-03-09	Rick Richardson <rick.richardson@comcast.net>
+	* New: ll2maidenhead
+
+2011-02-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Use basic member to download geo-nearest, etc.
+	    IT IS VERY SLOW! Pay the $30/year for Premium Member.
+	    - does poor mans cache now
+
+2011-02-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest: tx=code - nearby caches of this (puzzle) type
+
+2011-02-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-usernum: fix for GC.com 02/01/11 changes
+
+2011-02-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: fix for GC.com 02/01/11 changes
+
+2011-01-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: csv2csv remove trailing tab for .geo-mystery
+
+2011-01-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: use .loc file for size/difficulty/terrain
+	    also needs gpsbabel 1.4.3+ (not released yet)
+
+2011-01-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: bug fix with difficulty
+
+2011-01-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix size, difficulty, terrain for GC.com 12/21/10 changes.
+
+2010-12-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: delete iff local file exists
+	* geo-demand: if time is "start-", the "end" is in 6 months
+
+2010-12-25	Rick Richardson <rick.richardson@comcast.net>
+	* New program: geo-sdt:  Replace Size, Difficulty, Terrain
+
+2010-12-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix archived for GC.com 12/21/10 changes.
+
+2010-12-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix dates for GC.com 12/21/10 changes.
+
+	Note: http://www.geocaching.com/ImgGen/seek/CacheInfo.ashx?v=bgN6Nr
+	is cache size, diff, terrain and is encoded.
+
+2010-12-15	Rick Richardson <rick.richardson@comcast.net>
+	* New program: oc-nearest
+
+2010-12-05	Rick Richardson <rick.richardson@comcast.net>
+	* states.db, countries.db: update to GC and fix bug.
+
+2010-11-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix TGT for GC.com 11/09/10 changes.
+
+2010-11-22	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: archived caches
+
+2010-11-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: fix delete for GC.com 11/09/10 changes.
+	* gpx2html: exclude attributes.
+
+2010-11-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-suffix:     Also, print only "Events" if they are one day
+	    before or on the actual day.
+
+2010-11-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: typo wherigo.
+
+2010-10-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-ts2geko: Added
+
+2010-10-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand, geo-html2gpx: attributes for GC.com 10/20/10 changes.
+
+2010-10-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: modify "WaypointName"
+
+2010-10-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Modify -M to add GCcode "unk" "unk" comment
+	    places it in L. Superior
+
+2010-10-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Implement VIEWSTATE10.  For geo-demand.
+
+2010-09-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gpsdrive: update for icons
+
+2010-09-15	Rick Richardson <rick.richardson@comcast.net>
+	* update-caches: implement geo-uniq for incremental updates.
+
+2010-09-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc: Only do this IFF subscriber only login
+
+2010-09-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-suffix: Handle events differently
+	* geo-common-gc: Bug fix for wp2id
+	* geo-gccode2id: Added
+
+2010-09-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Need a country AND state IFF states exist.
+
+2010-08-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: break out of loop for GC.com 07/28/10 changes.
+
+2010-08-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: attributes for GC.com 07/28/10 changes.
+
+2010-08-21	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: option -z
+
+2010-08-20	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: new style waypoints.
+
+2010-08-20	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-map: bug with squeeze
+
+2010-08-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gid: Remove options that don't apply.
+
+2010-08-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest, geo-nearest, etc.: Modify -M, include "-" signs
+
+2010-08-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: email for GC.com 07/28/10 changes.
+
+2010-08-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest, geo-nearest, etc.: Add -M mystery file
+	    Usually done with a script:
+		# FTF HOUNDS MN STYLE - Ispy. GC252BQ - final location
+		geo-waypoint $FLAGS N 44° 53.192 W 093° 09.672 ISPY
+	    now there are two ways to do it.  Tab sep format:
+		GC252BQ	n44.50.129	w93.27.659	#FTF MN STYLE - Ispy
+
+2010-08-01	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: -s for single chars, -l for length
+
+2010-07-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: for GC.com 07/28/10 changes.
+
+	    Change URL from .../Default.aspx to .../default.aspx
+2010-07-27	redoxygene@free.fr
+	* geo-html2gpx doesn't get all logs in some cases.
+
+	In some cases, logs are not on a single line in the HTML source page.
+	When it happens, only the logs that are on the first line are taken
+	into account.
+	If you need some examples, it happens on the HTML pages of theses
+	caches : GCRMC3, GC2043P, GC15G8E.
+
+2010-06-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-myfinds: __VIEWSTATEFIELDCOUNT == 9, but VIEWSTATE9 is null.
+
+2010-06-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest and geo-demand: three letter countries.
+
+2010-06-22	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest and geo-demand: revamp countries and states.
+
+2010-06-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-myfinds: for 06/1[2-6] changes:
+	    Change URL from .../Default.aspx to .../default.aspx
+
+2010-06-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest: update states for Czech Rep.
+
+2010-06-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: logs for 06/02/10 changes with picture
+	* geo-nearest,newest: dates for 06/02/10 changes
+
+2010-06-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc, geo-gid, etc.: remove pf=y
+	* geo-html2gpx: owner, type, size for 06/02/10 changes
+	* geo-html2gpx: attributes for 06/02/10 changes
+	* geo-html2gpx: diff, terr for 06/02/10 changes
+	* geo-html2gpx: logs for 06/02/10 changes
+	* geo-html2gpx: waypoints for 06/02/10 changes
+
+2010-05-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-myfinds: Work with gc.com recent changes
+	* geo-pqdownload: Protect against blanks in target
+	* geo-intersect, ll2utm: grab zone and latitude band info
+
+2010-05-23	Phil Homewood <phil@rivendell.apana.org.au>
+	* Found a bug where several of the geo-* tools don't work for negative
+	    latitude.
+
+2010-05-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Clean up waypoints: cmt, desc, urlname, url
+
+2010-05-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Bug fix dogs and thorns.
+	* geo-nearest, geo-newest, etc.: disabled caches work with gc.com
+	    recent changes.
+
+2010-05-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add attributes
+	* geo-intersect: Cut and paste from geocaching.com cache page
+
+2010-05-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpxprocess: Added.
+
+2010-05-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: Protect against non-zipfile
+
+2010-05-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: Add -n option
+
+2010-05-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqdownload: Added.
+
+2010-04-26      Rick Richardson <rick.richardson@comcast.net>
+	* geo-firefox: add google maps
+
+2010-04-25      Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand, geo-pqs: prepare for Pocket Query limit == 1000
+
+2010-04-19	"Nosey" Nick Waterman <sig@noseynick.net>
+	* geo-html2gpx: Attended == Found It
+
+2010-04-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpx: Bug with "echo -e" and bash version 4.0.23
+
+2010-04-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: update
+
+2010-04-11	Rick Richardson <rick.richardson@comcast.net>
+	* gpx2html: Change waypoint from 3 to 4, otherwise nearest
+	    caches are wrong.
+	* geo-html2gpx: hints is wrong
+
+2010-03-31	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: work with 01/12/2010 plus
+		Don't retrieve subscribers only caches for non-subscribers
+
+2010-02-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: cleanup date parsing
+
+2010-02-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: unfound date:
+	    work with 01/12/2010 plus! Yesterday, Today.
+	* geo-nearest, geo-newest, etc.: iplaced
+	    work with 01/12/2010 plus!
+
+2010-02-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: placed date: work with 01/12/2010 plus!
+
+2010-02-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: work with 01/12/2010 plus!
+
+2010-01-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-usernum: work with 01/12/2010:
+	* geo-count: work with 01/12/2010:
+
+2010-01-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: work with 01/12/2010:
+	    terr, diff, archived, event date
+
+2010-01-21	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: patch diff286-h2g-span_newest committed.
+
+2010-01-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: cleanup formatting,
+		- # is indented
+		- lines less than 80 characters.
+	* geo-gpx: work with 01/12/2010.
+
+2010-01-20	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: patch diff285-h2g-logs committed.
+	* geo-html2gpx: patch diff286-h2g-span committed.
+
+2010-01-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: work with 01/12/2010.
+
+2010-01-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: protect against non-gawk stuff [)]
+	* geo-html2gpx: work with 01/12/2010, hints.
+	* geo-html2gpx: work with 01/12/2010, logs.
+
+2010-01-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: archived is Warning Strike
+	* geo-html2gpx: work with 01/12/2010, except for logs.
+	* geo-html2gpx: work with 01/12/2010, including logs.
+	* geo-html2gpx: Add -w, No Additional Waypoints
+
+2010-01-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: MNGCA is gcid!
+	* geo-nearest, geo-newest, etc.: container bug
+
+2010-01-11	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: patch diff282-h2g-spanclose committed.
+
+2010-01-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: clamp dates
+
+2009-12-19	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: add -w
+
+2009-12-19	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest: Bug fix for terr/diff
+
+2009-12-08	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: patch diff27-h2g-oregonfix committed
+
+2009-12-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: cleanup formatting
+
+2009-12-07	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: patch diff24-26-h2g committed
+
+2009-12-03	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx:
+	    Postpones the XML header write until the first valid wpt shows up,
+	    skips output if there's none, and only closes the <gpx> tag if it
+	    had been opened before.
+
+2009-11-27	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: Final cleanup.
+
+2009-11-25	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: 
+	    Remove HTML from short desc.
+	* geo-map:
+	    Unavail, unfound colors w/ -i
+	    
+2009-11-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest, geo-newest, etc.: Implement "Mega-Event" caches.
+
+2009-11-24	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: 
+	    Small fix to geo-html2gpx to remove HTML tags from log entries. <p>
+	    and <br> stuff is translated into line feeds as intended, everything
+	    else including links and images is simply dropped.
+	* geo-map:
+	    I have prepared a small patch to implement an additional "-i"
+	    (_small i_cons) option which results in:
+	    - the short names (GCxxxx) being used instead of the long ones
+	    - the cache icons being replaced by small dots, with the colouring
+	    code gray="found", green="regular", orange="multi", blue=else
+	    (it's a bit simplifying and probably unfair to "event" and
+	    "mystery" caches - it's an approximation to both the "big" icons
+	    and the colours used by gc.com) 
+
+2009-11-22	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: 
+	    Again a patch which underwent only minimal testing... please try
+	    at your own risk (at least gpsbabel seems to accept the output):
+	    - replaced "Additional Hidden Waypoints" with "Additional
+	    Waypoints" in long description (there's nothing hidden)
+	    - append waypoints with proper coords from "Additional Waypoints"
+	    table as <wpt> 
+
+2009-11-19	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-map: patch diff-osmafix 
+
+2009-11-18	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-map: Final edit for osm.
+
+2009-11-15	Rick Richardson <rick.richardson@comcast.net>
+	* gpx2html: Bug fix
+
+2009-11-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: base.gif is not a cache.
+
+2009-11-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: GEOSLEEP increased to 10
+
+2009-11-09	Steve8x8 <steffen@tandem-fahren.de>
+	* geo-html2gpx: Bug fix -l.
+
+2009-11-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Add missing attributes. 
+	* gpx2html: Add attributes
+
+2009-11-02	Steve8x8 <steffen@tandem-fahren.de>
+	* To fix the umlaut issues in: geo-map.sh
+
+2009-11-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Add Earthcache type.
+
+2009-11-01	Steve8x8 <steffen@tandem-fahren.de>
+	* To fix the umlaut issues in:
+	    geo-common-gc
+	    geo-gid.sh
+	    gpx2html
+	    geo-waypoint.sh 
+
+2009-10-29	Matthias <ughl0r@yahoo.de>
+	* geo-nearest, etc.: Add CURL_OPTS (~/.georc) for IPV4 ONLY
+	    CURL_OPTS="-4"
+
+2009-10-24	Matthias <ughl0r@yahoo.de>
+	* geo-2gpsdrive: initial support for gpsdrive 2.10, added a new
+	  flag -V 2.10 for it.  Uses sqlite3 not mysql.
+
+2009-10-16	Matthias <ughl0r@yahoo.de>
+	* geo-html2gpx: which adds the option to limit the number of log
+	  entries exported to the gpx-file
+
+2009-10-15	Rick Richardson <rick.richardson@comcast.net>
+	* geo-htmltbl2db added for geo-additional
+	    $ geo-additional  GC1Z9Y6
+	    geo-waypoint $FLAGS N 44° 53.007 W 093° 30.639 APARK
+	* geo-common-gc: Fix bug with archived caches
+	* copy geo-htmltbl2db from SHELLS to FILES
+
+2009-08-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqs/geo-newest: Swizterland state *state*.
+
+2009-08-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: update for file command and PNG 
+
+2009-08-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: found date
+
+2009-08-11	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: container
+
+2009-08-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: parse date during geo-newest
+
+2009-08-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: begin_new_entry
+	* geo-newest: ditto
+
+2009-07-20	Rick Richardson <rick.richardson@comcast.net>
+	* geo-usernum: gc does it again
+
+2009-07-13	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx
+	    # alternate URL... tagtext(2, "url", BaseURL "?wp=" gcid)
+	    # alternate URL... tagtext(2, "url", BaseURL "?id=" gid)
+	    tagtext(2, "url", BaseURL "?wp=" gcid)
+
+2009-07-12	Rick Richardson <rick.richardson@comcast.net>
+	* Bug fix for switzerland. Thanks, hreese.
+
+2009-06-28	Rick Richardson <rick.richardson@comcast.net>
+	* Bug fix for sweden. Thanks, Karro.
+
+2009-06-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Updated login process do to gc.com changes.
+	* geo-common: Use gsed instead of gnused on OSX
+
+2009-06-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-circles, geo-tri...: added feet;  
+
+2009-06-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-firefox: added -a source;  
+
+2009-05-22	Rick Richardson <rick.richardson@comcast.net>
+	* gc does it Again!!!!
+
+2009-05-21	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:  Get VIEWSTATE1 and VIEWSTATEFIELDCOUNT for
+	    geo-nearest et al.
+	* geo-demand: ditto
+
+2009-04-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:  error on join
+
+2009-02-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:  searching error (4) 
+
+2009-02-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-htl2gps: bug with time
+
+2009-02-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: fix bug with "Today"
+
+2009-02-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-htl2gps: add additional waypoints
+
+2009-02-06	Rick Richardson <rick.richardson@comcast.net>
+	* New: geo-2tangogps
+
+2009-01-24	Rick Richardson <rick.richardson@comcast.net>
+	* FIX: geo-nearest,newest,etc.
+	    getcids produced one too many in the XTRAFILE.
+
+2009-01-03	Rick Richardson <rick.richardson@comcast.net>
+	* FIX: geo-pqs does not work with countries/states containing spaces
+	    by hreese and rick
+
+2008-11-28	Rick Richardson <rick.richardson@comcast.net>
+	* addletters: Add -r for reverse
+
+2008-11-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-coords: Make it work with -m -l.
+
+2008-10-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-trilateration: Compute the intersection of three circles.
+
+2008-10-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-suffix: Put last 3 digits of lat/lon in.
+
+2008-09-29	Rick Richardson <rick.richardson@comcast.net>
+	* gpx-photos: Change map source to be -a terra
+
+2008-09-12	Rick Richardson <rick.richardson@comcast.net>
+	* txt2man.macros: only do specialps iff typesetter is ps.
+
+2008-09-10	Rick Richardson <rick.richardson@comcast.net>
+	* Makefile: include geo-countries-states.7
+
+2008-08-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: ignore GC0000
+
+2008-08-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Unknown caches.
+
+2008-08-09	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: placed time update.
+	* geo-pqs: add weekly
+
+2008-08-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: terr/diff update.
+
+2008-07-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: fix attr, time, tax...
+
+2008-07-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: fix cbDays$n.
+
+2008-07-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: fix YR.
+
+2008-07-25	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: fix to agree with gc.com, and logs, three.
+	* geo-html2gpx: Correct 07/05/08 problem deleting "8" from source.
+
+2008-07-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc: Work around "12am </font>" problem
+	* geo-common-gc: EVENTTARGET="ctl00%24ContentBody%24pgrTop%24$TGT"
+	* geo-common-gc: Today and Yesterday == found
+
+2008-07-05	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: delete ctrl-a thru ctrl-d.
+
+2008-06-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-suffix: Added. Replace name with name/type/size/diff/terr/gcid.
+	* update-caches: Added as a sample.
+
+2008-06-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-htmlgpx: update lat and lon.
+
+2008-05-30	Rick Richardson <rick.richardson@comcast.net>
+	* renamed geo-pg to geo-poi.  Added *.csv
+
+2008-05-17	Rick Richardson <rick.richardson@comcast.net>
+	* pgpdb2txt.c: change regex for Fedora 9.
+
+2008-05-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-dist: Add bearing.
+
+2008-05-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest: Add bookmark list
+
+2008-04-12	Rick Richardson <rick.richardson@comcast.net>
+	* gpx2html:	Use new style index_names_[*].html
+
+2008-04-08	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gpxmail: Use BASEPQNAME
+	    e.g. mn/mn-13.gpx instead of mn-13/mn-13.gpx.
+
+2008-03-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-intersect: added.
+	* geo-firefox: added.
+
+2008-02-28	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest: Add "pq=<pocket-query>".
+
+2008-02-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Qualifiers earth, mega, gps, where
+
+2008-02-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-merge: Don't add a file if its zero bytes.
+
+2008-02-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: Clamp dates to 2009 (was 12/31/2007)
+
+2008-01-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Increase logs to 500,000 bytes.
+
+2008-01-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Add lat="" to wpt_init; Modify lat=[-0-9].
+
+2008-01-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: mncga-newmap verbosity fixes
+
+2008-01-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Fix to work with site today - fix lat,lon
+
+2008-01-04	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Fix to work with site today
+
+2007-12-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Added "eog" for viewing.
+
+2007-12-28	Rick Richardson <rick.richardson@comcast.net>
+	* geo-procmail: Added to FILES
+
+2007-11-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-procmail: Added
+
+2007-10-26	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: add EVENTVALIDATION.
+	* geo-demand: replace '_' with ':' (%3A) in DateTimeBegin%3Amonth, etc.
+	* geo_count: icon_needsmaint
+
+2007-10-24	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest, geo-demand: Add more foreign states. E.G.
+	    $ geo-newest Berlin
+	* geo-newest: lower or upper case names for states
+	* Added: geo-countries-states.7 manual page.
+
+2007-10-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqs: Add -dDIFF, -tTERR, -qCONT, -qTYPE
+
+2007-10-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc:  adjust unfound.
+
+2007-10-10	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest et al: use __EVENTVALIDATION and gcid and
+	    __EVENTTARGET="pgrTop%24_$TGT"
+
+2007-09-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: If os == Darwin, use Preview.app
+
+2007-08-18	Rick Richardson <rick.richardson@comcast.net>
+	* geo-newest et al: ignore "google_ad".
+
+2007-07-03	Rick Richardson <rick.richardson@comcast.net>
+	* geo-pqs: Add -f for notfound.
+
+2007-06-15	Hein Ragas <hein@ragas.nl>
+	* geo-common: If os == Darwin, use gnused instead of sed.
+	* geo-common: If os == Darwin, use gdate instead of date.
+	* geo-common: If os == Darwin, use gtouch instead of touch.
+	* geo-map: Fix awk -v
+
+2007-06-14	Hein Ragas <hein@ragas.nl>
+	* geo-gpx: fix curl command.
+
+2007-05-23	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: recode -q options to cbOptions_0 ... cbOptions_13
+
+2007-05-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest,newest,etc: error if still searching.
+
+2007-05-01	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Fix with -amultimap
+
+2007-04-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-found: Encode '&' as %26.
+
+2007-04-12	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: Use 'display' if 'xv' doesn't exist
+
+2007-04-07	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest,newest,etc: type = cito
+
+2007-03-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-map: tr -d "*?"
+
+2007-03-17	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Neuter infinite loop in remspanlong().
+
+2007-03-15	Rick Richardson <rick.richardson@comcast.net>
+	* geo-html2gpx: Neuter infinite loop in remspanlong().
+	* geo-html2gpx: Alternate way to get lat/lon.
+
+2007-02-27	Rick Richardson <rick.richardson@comcast.net>
+	* geo-common-gc (geo-nearest, etc.): error if not logged in.
+
+2007-02-06	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest,newest,etc: Make sure -n1 gives only one cache.
+	    Before, -n1 would give 20 caches.  This was a feature.
+	    But now I think it was a misfeature.
+
+2007-01-16	Rick Richardson <rick.richardson@comcast.net>
+	* geo-gid: Handle caches >= GC10000.  Archived caches do not work. 
+
+2007-01-16	Rick Richardson <rick.richardson@comcast.net>
+	* ll2ggl: Added lat/lon to google maps.
+
+2006-12-30	Rick Richardson <rick.richardson@comcast.net>
+	* geo-demand: add -k (kill) to delete PQ's.
+
+2006-12-29	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest,newest,etc: GC12345 handled.
+
+2006-12-14	Rick Richardson <rick.richardson@comcast.net>
+	* geo-project -u bug fixed
+
+2006-12-02	Rick Richardson <rick.richardson@comcast.net>
+	* geo-nearest,newest,etc: Bug with -H.
+
+2006-11-16	Rick Richardson <rickr@mn.rr.com>
+	* gpx2html: Merge in changes from 1.90.
+
+2006-11-15	Rick Richardson <rickr@mn.rr.com>
+	* geo-found: Retrieve the NAME on archived caches.
+
+2006-11-14	Rick Richardson <rickr@mn.rr.com>
+	* geo-found: Add disabled AND archived caches.
+	* geo-gpxmail: Add -k (kill)
+
+2006-11-11	Rick Richardson <rickr@mn.rr.com>
+	* nc-newest: If newest = 0, do not output anything.
+
+2006-11-09	Rick Richardson <rickr@mn.rr.com>
+	* geo-demand: add -z option, do not zip.
+	* geo-gpx2mail: process -z option from geo-demand.
+
+2006-11-01	Rick Richardson <rickr@mn.rr.com>
+	* geo-html2gpx: fix wpt lon= and long_description=
+
+2006-09-20	Rick Richardson <rickr@mn.rr.com>
+	* geo-newest et al:  Ignore an "Unapproved cache".
+
+2006-09-12	Rick Richardson <rickr@mn.rr.com>
+	* geo-found et al: if geo.cids is 0 zero length, don't try to
+	  download to .loc file.
+
+2006-08-20	Rick Richardson <rickr@mn.rr.com>
+	* geo-newest: add country names.
+		Adam Thomas Connor <a.t.connor@neverwhere.demon.co.uk>
+
+2006-07-14	Rick Richardson <rickr@mn.rr.com>
+	* geo-nearest,newest,etc: Add option -! "lpr -Plp" to print
+	  HTML pages.  Requires package "htmldoc".
+
+2006-06-25	Rick Richardson <rickr@mn.rr.com>
+	* geo-html2gpx: adjust for new hints
+
+2006-06-23	Rick Richardson <rickr@mn.rr.com>
+	* geo-code: use geocode.us for US addresses
+
+2006-06-11	Rick Richardson <rickr@mn.rr.com>
+	* Added: lethist - compute letter histogram
+
+2006-06-10	Rick Richardson <rickr@mn.rr.com>
+	* All: added username/password error message to gc_login()
+
+2006-06-05	Rick Richardson <rickr@mn.rr.com>
+	* Added: ll2osg (lat/lon to British National Grid.
+	* geo-map: -a tscom:600 and -a tscom:601 now handled
+
+2006-06-02	Rick Richardson <rickr@mn.rr.com>
+	* geo-map: -t file.loc now handled
+
+2006-04-15	Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Bug fix: symbol=image.png
+
+2006-03-31	Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add -S symbol
+
+2006-03-20	Rick Richardson <rickr@mn.rr.com>
+	* nc-newest: Remove gzip=1 parm
+
+2006-03-19	Rick Richardson <rickr@mn.rr.com>
+	* geo-nearest,newest,etc.: With -H, delete control-G from *.html
+	* gpx2html: Add binmode HTMLOUT, ":utf8" iff perl >= 5.0008
+	* geo-nearest,newest,etc.: With -L/-H limit to 1500 caches/day.
+
+2006-03-13	Rick Richardson <rickr@mn.rr.com>
+	* geo-nearest,newest,etc.: check curl error return.
+
+2006-03-09	Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add ft, mi, km to circle radius.
+
+2006-03-04	Rick Richardson <rickr@mn.rr.com>
+	* geo-state:  Added a convenience script:
+	    cd ~/Caches
+	    geo-newest -n1500 -H $ss/tmp $SS >/dev/null
+	    geo-html2gpx $ss/tmp/*.html >$ss/$ss.gpx
+	    (cd $ss; gpx2html)
+	    geo-2gpsdrive -s -S -igpx $ss/$ss.gpx
+
+2006-01-25	Rick Richardson <rickr@mn.rr.com>
+	* geo-count: fix to work with new website
+	* geo-usernum: fix to work with new website
+	* geo-pg,pgpdb2txt: add -omindec option.
+
+2006-01-07	Rick Richardson <rickr@mn.rr.com>
+	* all: make $OUTFMT quoted "$OUTFMT"
+
+2006-01-06	Rick Richardson <rickr@mn.rr.com>
+	* geo-html2gpx: diff and terr update.
+	* geo-html2gpx: make it work in non-US countries.
+
+2005-11-22	Rick Richardson <rickr@mn.rr.com>
+	* geo-html2gpx: null hints
+
+2005-11-03	Rick Richardson <rickr@mn.rr.com>
+	* gpx-merge: Added.
+	* gpx-myfinds: Added.
+	* gpx-demand: Added -a attribute_list.
+
+2005-11-03	Rick Richardson <rickr@mn.rr.com>
+	* gpx-loghistory: Added -F, found logs only.
+
+2004-10-26      Rick Richardson <rickr@mn.rr.com>
+	* geo-demand: Added -o outfmt (and -O, -H, -L options like geo-nearest)
+	  With -o outfmt, geo-demand delivers the data instantly without
+	  using a PQ, in any format supported by gpsbabel.  But it still
+	  queries the database by using the PQ form.
+
+2004-10-24      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Added preliminary support for "-a tmrs", which is a local
+	  map generating program that uses Tiger or ESRI data to generate
+	  the maps.  The concept of scaling is not well-defined in this
+	  program (yet), so at best you can currently plot only the center
+	  waypoint.
+
+	  http://sourceforge.net/projects/tmrs/
+	  http://sumitbirla.com/software/tmrs.php
+
+	  The files containing the compressed map data are presumed to be
+	  in $HOME/lib/tmrs/ESRI/*.dat
+
+2004-10-23      Rick Richardson <rickr@mn.rr.com>
+	* Added geo-keyword to search for caches by keyword.
+
+2004-10-12      Rick Richardson <rickr@mn.rr.com>
+	* geo-usernum: fix to extract user numbers again.
+
+2004-10-11      Rick Richardson <rickr@mn.rr.com>
+	* geo-demand: add "small" to list of qualifiers.
+
+2004-10-10      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: add -R max radius option.
+
+2004-09-29      Rick Richardson <rickr@mn.rr.com>
+	* Added geo-coords to convert coordinate formats
+
+2004-09-17      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add % escapes to -T and -F options.
+
+2004-09-14      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add -C option to force centering on 1st set of coords.
+
+2004-09-12      Rick Richardson <rickr@mn.rr.com>
+	* geo-*: Adjust time extraction for new web page format.
+	* geo-*: Add container size.
+
+2004-09-04      Rick Richardson <rickr@mn.rr.com>
+	* Add gpx-stats: to compute overall cache stats on a GPX file
+
+2004-08-29      Rick Richardson <rickr@mn.rr.com>
+	* mngca-newmap: add -T option to specify temp directory.
+
+2004-08-28      Rick Richardson <rickr@mn.rr.com>
+	* geo-nearest et al: Do not fetch MOC caches unless $HOME/.georc
+	  has the line MOC=1 in it.  Fixes issues when these tools are
+	  used by non-members.
+
+2004-08-15      Rick Richardson <rickr@mn.rr.com>
+	* mngca-newmap:  make map clickable
+
+2004-08-12      Rick Richardson <rickr@mn.rr.com>
+	* Add geo-pqs script, to figure out which PQs you need to run to
+	  get all caches in a state or country.
+
+2004-08-08      Rick Richardson <rickr@mn.rr.com>
+	* gpx2html: Do not rewrite .gpx input files unless cleaning them
+	            actually changed them.
+
+2004-08-01      Rick Richardson <rickr@mn.rr.com>
+	* geo-gpx: Fix bug processing 1 or >=3 ids with an output format.
+
+2004-07-25      Rick Richardson <rickr@mn.rr.com>
+	* all: Allow LAT/LON in rc file to be in any format
+
+2004-07-24      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Save terraserver.com cookies for reuse.
+
+2004-07-17      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Fix for multimap lat/lon center
+
+2004-07-12      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add -j option to jog the image center.
+
+2004-07-06      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add terraserver.com (commercial) aerial photos
+
+2004-07-02      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add -g option to place a lat/lon grid on the map
+
+2004-06-29      Rick Richardson <rickr@mn.rr.com>
+	* geo-demand: validate diff/terr
+
+2004-06-26      Rick Richardson <rickr@mn.rr.com>
+	* all:  Allow cut/paste of lat/lon from GPX file, e.g.:
+		lat="44.550400" lon="-93.124117"
+
+2004-06-23      Rick Richardson <rickr@mn.rr.com>
+	* all: pass thru diff/terr/gctype.  N.B. gpsbabel has a bug and will
+	  not output these in GPX format (sigh).  But tabsep works.
+	* geo-map: fix bug with minimum radius (-r) option.
+
+2004-06-20      Rick Richardson <rickr@mn.rr.com>
+	* geo-project: add ellipsoid calculation.
+	* Add gpx-loghistory to bundle
+
+2004-06-19      Rick Richardson <rickr@mn.rr.com>
+	* geo-html2gpx: make output compatibile with gpx2html
+		        allow google page cache HTML as input (not well tested)
+
+2004-06-18      Rick Richardson <rickr@mn.rr.com>
+	* Added geo-html2gpx.
+
+2004-06-13      Rick Richardson <rickr@mn.rr.com>
+	* geo-dist: Add display of feet.
+
+2004-06-07      Rick Richardson <rickr@mn.rr.com>
+	* geo-gid: Treat O as 0.
+
+2004-06-03      Rick Richardson <rickr@mn.rr.com>
+	* Added geo-dist
+
+2004-05-26      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: add -r to specify minimum radius with -s0
+
+2004-05-16      Rick Richardson <rickr@mn.rr.com>
+	* geo-code: If -omap, display address as label.  Use -omap,-c
+	  to display address and lat/lon.
+
+2004-05-11      Rick Richardson <rickr@mn.rr.com>
+	* geo-found: improve calculation of caches found when using -L option
+	* Add geo-density command.
+
+2004-05-08      Rick Richardson <rickr@mn.rr.com>
+	* ll2utm: Allow richer set of lat/lon input formats.
+
+2004-05-05      Rick Richardson <rickr@mn.rr.com>
+	* Added geo-rehides
+
+2004-05-02      Rick Richardson <rickr@mn.rr.com>
+	* geo-pg,pgpdb2txt: fix category output (-t option)
+
+2004-04-27      Rick Richardson <rickr@mn.rr.com>
+	* geo-count: Accept any number of args.
+		     Add summary to cache ID output. Add header flag -h.
+
+2004-04-21      Rick Richardson <rickr@mn.rr.com>
+	* geo-usernum: Fix bug where names with blanks in them were
+	  sometimes being sorted out (due to missing -t option on sort).
+
+2004-04-19      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Fix bug where comand line coords weren't being plotted
+		   if a -t option was also present.
+
+2004-04-11      Rick Richardson <rickr@mn.rr.com>
+	* gpx2html: put breaks between date changes into "by date" table
+
+2004-04-08      Rick Richardson <rickr@mn.rr.com>
+	* geo-map:  use center lat/lon if more than 1 coord in command line
+
+2004-04-06      Rick Richardson <rickr@mn.rr.com>
+	* Create geo-common-nc and include it from nc-newest.sh.
+
+2004-04-04      Rick Richardson <rickr@mn.rr.com>
+	* Added moving cache icons (for Navicache)
+	* Added experimental 'nc-newest'
+	* mngca-newmap: modified to fetch newest navicaches.
+
+2004-04-03      Rick Richardson <rickr@mn.rr.com>
+	* Added "geo-gpxmail" to the tarball.
+
+2004-03-29      Rick Richardson <rickr@mn.rr.com>
+	* geo-gpx: Add ability to combine gpx data into a single file
+		    and convert it to a specified format.
+
+2004-03-28      Rick Richardson <rickr@mn.rr.com>
+	* Added "geo-gpx" program to get GPX files for individual caches
+	  - must be a gc.com member to use this program
+	  - I reserve the right to drastically change the command line
+	    usage for this program.  Consider this a proof of concept.
+
+2004-03-25      Rick Richardson <rickr@mn.rr.com>
+	* geo-count: update for new HTL on stats page.
+
+2004-03-20      Rick Richardson <rickr@mn.rr.com>
+	* gpx2html: merge in fizzymagic's 1.60 chages
+
+2004-03-18      Rick Richardson <rickr@mn.rr.com>
+	* Add a modified version of Gary Nicholsons geodetics.html calculator
+	  to the tarball.
+
+2004-03-16      Rick Richardson <rickr@mn.rr.com>
+	* geo-gid: remove restriction of 20 GIDs in geo-gid
+
+2004-03-14      Rick Richardson <rickr@mn.rr.com>
+	* geo-code: add percent escapes for name
+	* geo-map: use small red cross if symbol is unknown
+
+2004-02-21      Rick Richardson <rickr@mn.rr.com>
+	* geo-map:
+		allow greenpin as alias for grnpin (for rjl)
+		allow MAPTEXTBG=none to mean no box around the text (for rjl)
+		convert backquotes to single quotes on labels to avoid
+		shell hell.
+
+2004-02-15      Rick Richardson <rickr@mn.rr.com>
+	* all: force LANG=en_US.  These scripts are written for english,
+	  the international language of geocaching.
+
+2004-02-13      Rick Richardson <rickr@mn.rr.com>
+	* geo-map:  vicinity maps R.I.P.
+
+2004-02-01      Rick Richardson <rickr@mn.rr.com>
+	* geo-code: just display the first (most likely) match
+
+2004-01-28      Rick Richardson <rickr@mn.rr.com>
+	* geo-demand:  update for new PQ page (in progress).
+
+2004-01-15      Rick Richardson <rickr@mn.rr.com>
+	* geo-count:  Add counting of cache log entries.
+	    
+2004-01-13      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Can now generate HTML image maps using -h option.
+		Can now overlay an existing .gif or .png map with symbols.
+
+2003-12-22      Rick Richardson <rickr@mn.rr.com>
+	* Add geo-demand to generate an on-demand gc.com pocket query
+
+2003-12-16      Rick Richardson <rickr@mn.rr.com>
+	* Forgot to put geo-placed into the tarball
+
+2003-12-07      Rick Richardson <rickr@mn.rr.com>
+	* all: Get ride of /dev/fd stuff for gpsbabel (which ought to allow
+	       a filename alias of "-" for stdin/stdout on readers/writers
+	       that do not seek).  Now runs under CygWin.
+	* geo-map: When running under CygWin, use mspaint.exe instead of xv
+		to display images.
+
+2003-12-04      Rick Richardson <rickr@mn.rr.com>
+	* all-gc: Handle which date to use more intelligently since we are
+		allowed only one date in the gpsbabel (and gpx) databases.
+		The date used will depend on whether the command is
+		geo-nearest/geo-newest, geo-found, or geo-placed.  The
+		timestamp of the -H/-L files will always be the greater
+		of {found,placed}.
+
+2003-12-03      Rick Richardson <rickr@mn.rr.com>
+	* all: fix type of mystery caches.
+
+2003-12-02      Rick Richardson <rickr@mn.rr.com>
+	* all: Don't retrieve HTML pages if we already have the newest one.
+	       (sigh, reported date is only last found, not last logged)
+
+2003-11-28      Rick Richardson <rickr@mn.rr.com>
+	* all: move a bunch of varaibles into geo-comoon-gc
+	* geo-map: Make -a6 work properly (for gc.com members only)
+
+2003-11-27      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Finally figured out how to compensate for the broken
+		x/y scaling with -a6/-a7 (gc.com).  This time for maybe :-)
+	
+2003-11-26      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: Add support for -a8/-amultimap (worldwide maps) and
+		    -a9/-amultimap-aerial (UK aerial photos).
+	* geo-map: Adjust auto-scaling calculation
+
+2003-11-19      Rick Richardson <rickr@mn.rr.com>
+	* all: fix bug in URL encoding
+	* geo-code: explicitly call for phonenumber search, fix bug
+
+2003-11-18      Rick Richardson <rickr@mn.rr.com>
+	* geo-map:  Add -aurl option to generate a mailable URL instead of
+		a map.
+
+2003-11-17      Rick Richardson <rickr@mn.rr.com>
+	* geo-count, mngca: changes to count travel bugs
+
+2003-11-12      Rick Richardson <rickr@mn.rr.com>
+	* all: invent gpsbabel_formats procedure so that the -o? option
+	  outputs consistent information on available output formats.
+	* all: Fix URL.
+	* all: Add -H htmldir and -L logdir options for backing up your
+	       cache descriptions and cache logs.  See usage of geo-found
+	       and geo-placed for examples.
+
+2003-11-11      Rick Richardson <rickr@mn.rr.com>
+	* geo-found: handle & username
+	* geo-map: Handle evil MOC caches for now by using the normal icons.
+
+2003-11-11      Rick Richardson <rickr@mn.rr.com>
+	* geo-code: Add ability to geocode a placename
+
+2003-11-09      Rick Richardson <rickr@mn.rr.com>
+	* geo-count: Use gawk instead of awk, because the script uses the
+	    third argument to match() GNU awk extension.  "mawk", found
+	    on Debian, can't handle this.
+
+2003-11-08      Rick Richardson <rickr@mn.rr.com>
+	* geo-count: Update for new gc.com web site design.
+
+2003-11-06      Rick Richardson <rickr@mn.rr.com>
+	* geo-waypoint:  Allow -t to change the waypoint type for any
+			 output format.
+
+2003-11-04      Rick Richardson <rickr@mn.rr.com>
+	* geo-nearest et al: use date of last find as waypoint creation date.
+
+2003-11-03      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: add ability to pass in label colors and fonts via
+		   environment vars MAPFONT, MAPTEXTFG, MAPTEXTBG.
+
+2003-11-02      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: - clip points that are not on the image 
+	           - add -a7/-agc-icons
+	           - add -a6/-agc (but broken due to weird gc map projection)
+	* geo-2gpsdrive: New program to enter a file of waypoints into the
+	                 Gpsdrive SQL database.
+	* mngca-newmap: add -a and -v options.
+
+2003-10-25      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: tweak label location for cross
+
+2003-10-20      Rick Richardson <rickr@mn.rr.com>
+	* geo-usernum: fix bug with alias (Real Name) parsing
+
+2003-10-17      Rick Richardson <rickr@mn.rr.com>
+	* geo-code: update to make it work again.
+
+2003-10-16      Rick Richardson <rickr@mn.rr.com>
+	* geo-circles: initial release
+
+2003-10-14      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: add -ablack, -awhite, and -agray for no map at all.
+	* geo-map: Fix unpacking of images.
+	* geo-code, geo-found, geo-newest, geo-placed:
+	    Modify -omap option to allow passing opts to geo-map.
+	* geo-map: Fix scaling for map source 2 when alti is 0.
+	* geo-code: Work around bug with IFS setting.
+
+2003-10-12      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: rename "circle" command to "dot", and add new
+	 circle command that plots an unfilled circle of the desired
+	 radius, which can be in pixels or in meters (suffix m/M).
+
+2003-10-11      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: output GpsDrive map_koord.txt data on stdout when
+	  -o option is used to save the file.
+
+2003-10-10      Rick Richardson <rickr@mn.rr.com>
+	* geo-map: print ul/ll and center coords and scale. Useful for
+	  importing topo maps into GpsDrive.
+
+2003-01-20	Rick Richardson <rickr@mn.rr.com>
+	* First commit!!!

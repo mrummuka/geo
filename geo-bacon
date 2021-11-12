@@ -1,0 +1,128 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Baconian decoder from HTML <font>'s or <b>'s
+
+SYNOPSIS
+    `basename $PROGNAME` [options] file
+
+DESCRIPTION
+    Baconian decoder from HTML <font>'s, <b>'s, <i>'s, <em>'s, or <strong>'s.
+
+EXAMPLE
+    http://coord.info/GC1QRQ6
+
+	$ geo-bacon GC1QRQ6.txt
+	abbabbbaaababbbabbbabbbabbbbbbbbbabbbaaabbabbbabbbabbbabbbbbabbabb...
+
+	$ geo-bacon GC1QRQ6.txt | baconian2text -s -i
+	thiscacheisatcidhcbbgdceefctypicalpineyhidefiftyftfromfirebreak
+
+OPTIONS
+    -D lvl	Debug level
+
+SEE ALSO
+    baconian2text
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# != 1 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+if grep -q "<font " $1; then
+    sed -e 's/<font /\n&/g' $1 |
+    awk '
+    BEGIN {
+    }
+    /<font / {
+	text = $0
+	gsub(/<font [^>]*>/, "", text)
+	gsub(/<\/font.*>/, "", text)
+	for (i=1; i <= length(text); ++i)
+	    if (substr(text, i, 1) != " ")
+		printf ab == 0 ? "a" : "b"
+	ab = !ab
+	next
+	if (ab == 0)
+	{
+	    ab = 1
+	    for (i=1; i <= length(text); ++i)
+		if (substr(text, i, 1) != " ") printf "a"
+	}
+	else
+	{
+	    ab = 0
+	    for (i=1; i <= length(text); ++i)
+		if (substr(text, i, 1) != " ") printf "b"
+	}
+	# print text
+    }
+    END {
+	printf "\n"
+    }
+    '
+else
+    sed -e "s#<p>#</b>#g" -e "s#</p>##g" \
+	-e "s/<[iI]>/<b>/g" -e "s#</[iI]>#</b>#g" \
+	-e "s/<strong>/<b>/g" -e "s#</strong>#</b>#g" \
+	-e "s/<em>/<b>/g" -e "s#</em>#</b>#g" \
+	-e 's/<[bB]>/\n&/g' -e 's#</[bB]>#\n&#g' $1 |
+    awk '
+    /<[bB]>/ {
+	text = $0
+	gsub(/.*>/, "", text)
+	gsub(/ /, "", text)
+	gsub(/[.,]/, "", text)
+	gsub(/[a-zA-Z]/, "a", text)
+	printf "%s", text
+    }
+    /<\/[bB]>/ {
+	text = $0
+	gsub(/.*>/, "", text)
+	gsub(/ /, "", text)
+	gsub(/[.,]/, "", text)
+	gsub(/[a-zA-Z]/, "b", text)
+	printf "%s", text
+    }
+    END {
+	printf "\n"
+    }
+    '
+fi

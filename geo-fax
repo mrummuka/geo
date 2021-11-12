@@ -1,0 +1,190 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Decode a FAX using 0s and 1s
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Decode a FAX using 0s and 1s. EOL's (00000000001) are optional and
+    supported.
+
+    Only run lengths up to 32 are supported at this time!
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Decode https://coord.info/GC4XGD1:
+    
+	$ geo-fax
+	000111100001111011111010001000011101000011101000011110
+	100001010000101010001010000101000010000111010000111010000111010
+	000111100001111011111010001000011110000111010000111010
+	10000100001110100100001011000101000010000111010000111010
+	000111100001111011111000011101000011110100001000011110
+	### ###       ###   ### # # ###
+	  #   #         #   #   # # # #
+	### ###       ###   ### ### # #
+	  # #           #     #   # # #
+	### ###       ### # ###   # ###
+
+SEE ALSO
+    https://www.windsurfnow.co.uk/imedit/ModHuffman.html
+    http://www.iet.unipi.it/m.luise/HTML/SdT /10_4%20Modified%20Huffman%20Coding.htm
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+#
+#	FAX fax Fax Facts https://coord.info/GC4XGD1
+#http://web.archive.org/web/20020628195336/http://www.netnam.vn/unescocourse/computervision/104.htm
+#
+awk -v DEBUG=$DEBUG '
+BEGIN {
+    eol = "000000000001"
+    w[eol] = -1
+    w["00110101"] = 0
+    w["000111"] = 1
+    w["0111"] = 2
+    w["1000"] = 3
+    w["1011"] = 4
+    w["1100"] = 5
+    w["1110"] = 6
+    w["1111"] = 7
+    w["10011"] = 8
+    w["10100"] = 9
+    w["00111"] = 10
+    w["01000"] = 11
+    w["001000"] = 12
+    w["000011"] = 13
+    w["110100"] = 14
+    w["110101"] = 15
+    w["101010"] = 16
+    w["101011"] = 17
+    w["0100111"] = 18
+    w["0001100"] = 19
+    w["0001000"] = 20
+    w["0010111"] = 21
+    w["0000011"] = 22
+    w["0000100"] = 23
+    w["0101000"] = 24
+    w["0101011"] = 25
+    w["0010011"] = 26
+    w["0100100"] = 27
+    w["0011000"] = 28
+    w["00000010"] = 29
+    w["00000011"] = 30
+    w["00011010"] = 31
+    w["00011011"] = 32
+
+    b["0000110111"] =0
+    b["010"] = 1
+    b["11"] = 2
+    b["10"] = 3
+    b["011"] = 4
+    b["0011"] = 5
+    b["0010"] = 6
+    b["00011"] = 7
+    b["000101"] = 8
+    b["000100"] = 9
+    b["0000100"] = 10
+    b["0000101"] = 11
+    b["0000111"] = 12
+    b["00000100"] = 13
+    b["00000111"] = 14
+    b["000011000"] = 15
+    b["0000010111"] = 16
+    b["0000011000"] = 17
+    b["0000001000"] = 18
+    b["00001100111"] = 19
+    b["00001101000"] = 20
+    b["00001101100"] = 21
+    b["00000110111"] = 22
+    b["00000101000"] = 23
+    b["00000010111"] = 24
+    b["00000011000"] = 25
+    b["000011001010"] = 26
+    b["000011001011"] = 27
+    b["000011001100"] = 28
+    b["000011001101"] = 29
+    b["000001101000"] = 30
+    b["000001101001"] = 31
+    b["000001101010"] = 32
+}
+{
+    t = $0
+    tl = length(t)
+    for (;;)
+    { 
+	for (wi in w)
+	{
+	    wl = length(wi)
+	    if (wl <= tl && substr(t, 1, wl) == wi)
+	    {
+		if (DEBUG) print "W" w[wi]
+		if (w[wi] == eol) { printf "\n"; next }
+		printf "%.*s", w[wi], "                                        "
+		t = substr(t, wl+1)
+		break
+	    }
+	}
+	tl = length(t)
+	if (tl <= 0) break
+	for (bi in b)
+	{
+	    bl = length(bi)
+	    if (bl <= tl && substr(t, 1, bl) == bi)
+	    {
+		if (DEBUG) print "B" b[bi]
+		printf "%.*s", b[bi], "########################################"
+		t = substr(t, bl+1)
+		break
+	    }
+	}
+	tl = length(t)
+	if (tl <= 0) break
+    }
+    printf "\n"
+}
+END {
+    #printf "\n"
+}
+'

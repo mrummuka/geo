@@ -1,0 +1,129 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Add or subtract a value from the coordinates
+
+SYNOPSIS
+    `basename $PROGNAME` [options] lat lon value
+
+    `basename $PROGNAME` [options] lat lon ns-value ew-value
+
+DESCRIPTION
+    Add or subtract a value or values from the coordinates.
+
+OPTIONS
+    -odegdec	Print lat/lon in DegDec format
+    -omindec	Print lat/lon in MinDec format
+    -orickdec	Print lat/lon in Rick's MinDec format (default)
+    -D lvl	Debug level
+
+EXAMPLE
+    Add or subtract .111:
+
+	$ geo-addsub N60.39.867 E16.10.743 .111
+	N60.39.978 E16.10.854   # Add .111, Add .111
+	N60.39.756 E16.10.854   # Sub .111, Add .111
+	N60.39.978 E16.10.632   # Add .111, Sub .111
+	N60.39.756 E16.10.632   # Sub .111, Sub .111
+
+    Add or subtract .054/.213:
+
+	$ geo-addsub N 42° 00.455 W 092° 54.044 .054 .213
+	N42.00.509 W092.54.257  # Add .054, Add .213
+	N42.00.401 W092.54.257  # Sub .054, Add .213
+	N42.00.509 W092.53.831  # Add .054, Sub .213
+	N42.00.401 W092.53.831  # Sub .054, Sub .213
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+FMT=rickdec
+while getopts "o:D:h?" opt
+do
+	case $opt in
+	o)	FMT="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+case "$#" in
+7|8)
+        # Cut and paste from geocaching.com cache page
+        # N 44° 58.630 W 093° 09.310
+        LATD=`echo "$1$2" | tr -d '\260\302' `
+        LATM=`echo "$3" | tr -d '\260\302' `
+        LOND=`echo "$4$5" | tr -d '\260\302' `
+        LONM=`echo "$6" | tr -d '\260\302' `
+	case "$#" in
+        7)	NSADDSUB=$7; EWADDSUB=$7; shift 7;;
+        8)	NSADDSUB=$7; EWADDSUB=$8; shift 8;;
+	esac
+        ;;
+3|4)
+	LATD=`echo "$1" | sed -e 's/\..*//'`
+	LATM=`echo "$1" | sed -e 's/[nNsS][0-9]*\.//'`
+	LOND=`echo "$2" | sed -e 's/\..*//'`
+	LONM=`echo "$2" | sed -e 's/[wWeE][0-9]*\.//'`
+	case "$#" in
+        3)	NSADDSUB=$3; EWADDSUB=$3; shift 3;;
+        4)	NSADDSUB=$3; EWADDSUB=$4; shift 4;;
+	esac
+	;;
+*)
+	usage
+	;;
+esac
+
+#echo $LATD $LATM $LOND $LONM $ADDSUB
+lata=`echo $LATM+$NSADDSUB | bc | sed -e 's/^\./0./' -e 's/^[0-9]\./0&/' `
+lats=`echo $LATM-$NSADDSUB | bc | sed -e 's/^\./0./' -e 's/^[0-9]\./0&/' `
+lona=`echo $LONM+$EWADDSUB | bc | sed -e 's/^\./0./' -e 's/^[0-9]\./0&/' `
+lons=`echo $LONM-$EWADDSUB | bc | sed -e 's/^\./0./' -e 's/^[0-9]\./0&/' `
+if [ "$FMT" = mindec ]; then
+    echo $LATD $lata $LOND $lona "	# Add $NSADDSUB, Add $EWADDSUB"
+    echo $LATD $lats $LOND $lona "	# Sub $NSADDSUB, Add $EWADDSUB"
+    echo $LATD $lata $LOND $lons "	# Add $NSADDSUB, Sub $EWADDSUB"
+    echo $LATD $lats $LOND $lons "	# Sub $NSADDSUB, Sub $EWADDSUB"
+elif [ "$FMT" = degdec ]; then
+    echo `geo-coords -l $LATD.$lata $LOND.$lona` \
+	 `geo-coords -L $LATD.$lata $LOND.$lona` "	# Ad $NSADDSUBd, Add $EWADDSUB"
+    echo `geo-coords -l $LATD.$lats $LOND.$lona` \
+	 `geo-coords -L $LATD.$lats $LOND.$lona` "	# Sub $NSADDSUB, Add $EWADDSUB"
+    echo `geo-coords -l $LATD.$lata $LOND.$lons` \
+	 `geo-coords -L $LATD.$lata $LOND.$lons` "	# Add $NSADDSUB, Sub $EWADDSUB"
+    echo `geo-coords -l $LATD.$lats $LOND.$lons` \
+	 `geo-coords -L $LATD.$lats $LOND.$lons` "	# Sub $NSADDSUB, Sub $EWADDSUB"
+else
+    echo $LATD.$lata $LOND.$lona "	# Add $NSADDSUB, Add $EWADDSUB"
+    echo $LATD.$lats $LOND.$lona "	# Sub $NSADDSUB, Add $EWADDSUB"
+    echo $LATD.$lata $LOND.$lons "	# Add $NSADDSUB, Sub $EWADDSUB"
+    echo $LATD.$lats $LOND.$lons "	# Sub $NSADDSUB, Sub $EWADDSUB"
+fi

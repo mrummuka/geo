@@ -1,0 +1,483 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+    cat <<EOF
+NAME
+    `basename $PROGNAME` - Update caches
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [place]
+
+DESCRIPTION
+    Update caches.  Super script for rick.
+
+OPTIONS
+    -0		Update, but no geo-nearest/geo-newest
+    -a		All.  Do geo-nearest AND geo-newest.
+    -f		Find 
+    -F		Force
+    -i		Incremental (200)
+    -I		Incremental (2000)
+    -n          Use geo-newest instead of geo-nearest
+    -p		Puzzles
+    -q          Quick (60)
+    -D lvl	Debug level
+
+EXAMPLES
+    Incremental:
+
+	$ update-caches -i
+
+    Newest incremental:
+
+	$ update-caches -i -n
+
+    Newest incremental in Shakopee:
+
+	$ update-caches -i -n shakopee
+
+    Newest incremental puzzles:
+
+	$ update-caches -i -n -p
+
+    Nearest incremental puzzles:
+
+	$ update-caches -i -p
+
+PLACES
+$places
+EOF
+
+    exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+SDTOPTS=-H
+NEWEST=0
+ALL=0
+PATH=$PATH:$HOME/bin
+DEBUG=0
+NOFIND=-f
+NOGEO=0
+FORCE=0
+INCR=0
+PUZZLES=0
+REMOTE=rick
+MASTER=dual
+MASTER=quad
+STATE=
+while getopts "0afFiInpqD:h?" opt
+do
+	case $opt in
+	0)	NOGEO=1;;
+	f)	NOFIND=;;
+	F)	FORCE=1;;
+	i)	INCR=200;;
+	I)	INCR=2000;;
+	a)	ALL=1;;
+	n)	NEWEST=1;;
+	p)	PUZZLES=1;;
+	q)	geo-newest -s -f -n60 -S; exit;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	places=`grep "[	]NAME=" ~/bin/update-caches |
+		    sed -e "s/[)].*//" -e "s/^/    /" `
+		usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+place=`echo "$1" | tr A-Z a-z`
+case "$place" in
+[0-9]*|n[0-9]*)		NAME=Coords; LATLON="$1 $2";;
+shak*)			NAME=Shakopee; LATLON="n44.44.814 w93.30.867";;
+bloom*)			NAME=Bloomington; LATLON="n44.50.000 w93.18.000";;
+stpaul)			NAME=StPaul; LATLON="n44.57.250 w93.06.833";;
+andy)			NAME=Andy; LATLON="n44.55.000 w93.20.000";;
+buff*)			NAME=Buffalo; LATLON="n45.10.000 w93.52.000";;
+norwood)		NAME=Norwood; LATLON="n44.46.143 w93.55.555";;
+elm*)			NAME=ElmCreek; LATLON="N45.10.005 W93.24.729";;
+blaine)			NAME=Blaine; LATLON="n45.10.150 w93.11.300";;
+blainea*)		NAME=BlaineAirport; LATLON="n45.8.000 w93.11.000";;
+rich*)			NAME=Richfield; LATLON="n44.54.000 w93.15.000";;
+cache2000)		NAME=Cache2000; LATLON="n45.04.000 w93.12.000";;
+zoo)			NAME=Zoo; LATLON="n44.46.000 w93.11.500";;
+brook*)			NAME=BrooklynPark; LATLON="n45.07.000 w93.20.000";;
+fair)			NAME=StateFair; LATLON="n44.59.500 w93.10.000";;
+winsted)		NAME=Winsted; LATLON="n44.57.000 w94.00.000";;
+wac*)			NAME=Waconia; LATLON="n44.50.000 w93.47.000";;
+lake*)			NAME=Lakeville; LATLON="n44.39.000 w93.14.500";;
+white*)			NAME=WhiteBearLake; LATLON="n45.04.000 w93.00.000";;
+falls)			NAME=MinnehahaFalls; LATLON="n44.55.000 w93.12.500";;
+vict*)			NAME=Victoria; LATLON="n44.52.000 w93.40.000";;
+ne*)			NAME=NorthEastMpls; LATLON="n45.00.000 w93.15.000";;
+maple*)			NAME=MapleGrove; LATLON="n45.05.000 w93.25.000";;
+home|"")		NAME=Home; LATLON="n44.56.850 w93.29.465";;
+n40)			NAME=North40; LATLON="n45.31.603 w93.29.465";;
+w40)			NAME=West40; LATLON="n44.56.675 w94.18.403";;
+s40)			NAME=South40; LATLON="n44.22.094 w93.29.465";;
+e40)			NAME=East40; LATLON="n44.56.675 w92.40.527";;
+hudson)			NAME=HudsonWI; LATLON="n44.58.000 w92.45.000"
+			STATE="wi";;
+*)			error "Don't understand '$1'";;
+esac
+
+EXCLUDE=
+if [ "$ALL" = 1 ]; then
+    NUM=1600
+    GEO=geo-newest
+elif [ "$NEWEST" = 1 ]; then
+    GEO=geo-newest
+    NUM=7500
+else
+    GEO=geo-nearest
+    NUM=1600
+fi
+if [ $INCR != 0 ]; then
+    EXCLUDE="-X ~"
+    ((INCR=INCR/2))
+fi
+
+OC=oc-nearest
+OCNUM=60
+OK=ok-nearest
+OKNUM=60
+
+#
+#	Main Program
+#
+
+#
+#	Zeroeth:  do a gpx-merge
+#
+for i in ~/Caches/mn/*.gpx; do
+    if [ $i -nt ~/Caches/mn.gpx ]; then
+	echo "Do GPX merge..."
+        gpx-merge ~/Caches/mn/*.gpx > ~/Caches/mn.gpx
+	gpx-unfound rickrich < ~/Caches/mn.gpx > ~/Caches/unfound.gpx
+	lat=$(geo-coords -l $LATLON)
+	lon=$(geo-coords -L $LATLON)
+	gpsbabel -i gpx -f ~/Caches/unfound.gpx \
+	    -x radius,lat=$lat,lon=$lon,distance=12mi \
+	    -o gpx -F $HOME/unfound-12mi.gpx
+        break
+    fi
+done
+if [ ~/Caches/mn.gpx -nt ~/Caches/mn.ts ]; then
+    echo "Convert to mn.ts..."
+    gpsbabel -i gpx -f ~/Caches/mn.gpx -o tabsep -F ~/Caches/mn.ts
+fi
+
+#
+#	First, Populate the GpsDrive database
+#
+    date
+    NOSOC=-m
+    FILE=$HOME/Caches/rick.ts
+    OCFILE=$HOME/Caches/ocrick.ts
+    OKFILE=$HOME/Caches/okrick.ts
+    TMP=$HOME/Caches/tmp.ts
+    TMP2=$HOME/Caches/tmp2.ts
+    > $TMP
+    > $TMP2
+
+    if [ $NOGEO = 0 ]; then
+	echo "Fetching Rick's waypoints at $NAME $LATLON..."
+
+	case `uname -n` in
+	*tosh*)	get=1;;
+	*rick*)	get=1;;
+	*dual*)	get=1;; #1/30/9
+	*quad*)	get=1;; #1/30/9
+	*)		get=0;;
+	esac
+
+	if [ $get = 1 -o $FORCE = 1 ]; then
+	    if [ $INCR != 0 ]; then
+		echo "Incremental $INCR.  $FILE ..."
+		NUM=$INCR
+		if [ $GEO = "geo-nearest" ]; then
+		    cp $FILE $TMP2
+		else
+		    sed -e '/	Event Cache	/d' \
+			-e '/	Cache In Trash Out Event	/d' \
+			< $FILE > $TMP2
+		fi
+	    fi
+
+	    # Purge all, and get the 700 nearest our house...
+	    # Mark members-only specially,
+	    #geo-nearest -D1 -n$NUM $NOSOC $NOFIND -otabsep \
+	    if [ $ALL = 1 ]; then
+		geo-nearest -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep \
+		    $LATLON >> $TMP2
+		geo-newest -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep $STATE \
+		    >> $TMP2
+	    elif [ $PUZZLES = 1 -a $GEO = "geo-newest" ]; then
+		geo-newest -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep \
+		    -q unknown $STATE >> $TMP2
+	    elif [ $PUZZLES = 1 -a $GEO = "geo-nearest" ]; then
+		geo-nearest -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep \
+		    $LATLON unknown >> $TMP2
+	    elif [ $GEO = "geo-nearest" ]; then
+		$GEO -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep \
+		    $LATLON >> $TMP2
+	    else
+		$GEO -D1 -n$NUM $NOSOC $NOFIND $EXCLUDE -otabsep $STATE >> $TMP2
+	    fi
+	    if [ $? != 0 ]; then
+		    echo "**** Error in $GEO!"
+		    exit 1
+	    fi
+	    if [ $INCR = 0 ]; then
+		> $FILE
+	    fi
+
+	    # 100 nearest Stillwater
+	    # geo-nearest -n100 $NOSOC -otabsep 45.02.845 W092.51.231 >> $TMP2
+
+	    sed -e '/by dyl1231/s/Geocache-/&dylan-/' \
+		    -e '/by King Boreas/s/Geocache-/&kb-/' \
+		    -e 's/ by [^	]*//' \
+		    < $TMP2 >> $TMP
+
+	    # 100 nearest Woodbury
+	    #geo-nearest -n100 $NOSOC -otabsep N44.55.544 W92.57.336 >> $TMP
+
+	    # 20 nearest Stearns Scout Camp
+	    #geo-nearest -n20 $NOSOC -otabsep 55382 >> $TMP
+
+	    # 20 nearest Kevin and Laurie's
+	    #geo-nearest -n20 $NOSOC -otabsep 44.802402  -93.178852 >> $TMP
+
+	    # 20 nearest Dick and Marcia's
+	    #geo-nearest -n20 $NOSOC -otabsep 45.11362 -95.06398 >> $TMP
+
+	    # 60 nearest Mankato
+	    #geo-nearest -n60 $NOSOC -otabsep 44.16562 -94.00130 >> $TMP
+
+	    # 100 nearest Faribault
+	    #geo-nearest -n100 $NOSOC -otabsep 55021 >> $TMP
+
+	    # remove duplicates...
+	    if [ $INCR != 0 ]; then
+		geo-uniq $TMP > $TMP2
+		gpsbabel -itabsep -f$TMP2 -x duplicate,location -otabsep -F$TMP
+		geo-uniq $TMP | geo-sdt $SDTOPTS ~/Caches/mn.ts |
+		    grep -v "unavail-" > $FILE
+	    else
+		gpsbabel -itabsep -f$TMP -x duplicate,location -otabsep -F$TMP2
+		geo-sdt $SDTOPTS ~/Caches/mn.ts < $TMP2 > $FILE
+	    fi
+	else
+	    scp $REMOTE:$FILE $FILE
+	fi
+	date
+    else
+	# update-caches -0
+	cp -a $FILE $TMP2
+	geo-sdt $SDTOPTS ~/Caches/mn.ts < $TMP2 > $FILE
+    fi
+    wc -l $FILE
+
+    if [ $NOGEO = 0 ]; then
+	echo "Fetching maintenance waypoints ..."
+	geo-nearest -X "" -otabsep \
+	    -q "Needs Maintenance" > $HOME/Caches/maint.ts
+	geo-nearest -X "" -otabsep \
+	    -q "Needs Maintenance not active" >> $HOME/Caches/maint.ts
+    fi
+
+#echo "Fetching Rick's opencaching.com waypoints ($OCNUM) ..."
+#    $OC -f -n$OCNUM -otabsep > $OCFILE
+
+echo "Fetching Rick's opencaching.us waypoints ($OKNUM) ..."
+    $OK -f -n$OKNUM -otabsep > $OKFILE
+
+echo "Converting waypoints to GPSdrive 2.09..."
+    # Enter into GpsDrive database
+    geo-2gpsdrive -s -itabsep -S -P $FILE
+    geo-2gpsdrive -s -itabsep -S $OCFILE
+    geo-2gpsdrive -s -itabsep -S $OKFILE
+    $HOME/bin/temp-caches
+
+echo "Converting waypoints to Geko at $NAME $LATLON..."
+	# make Cetus
+	if false; then
+	    grep -v -- "-ifound-" $FILE > $TMP
+	    gpsbabel -s -i tabsep -f $TMP \
+		    -o cetus,dbname=gc,appendicon -F ~/Caches/cetus-gc.pdb
+	fi
+
+	# temp-caches
+	$HOME/bin/temp-caches -otabsep > $HOME/Caches/temp-caches.ts
+
+	# Geko
+	grep -v "[-]ifound" $FILE | cat > $HOME/Caches/xxx.ts
+	lat=$(geo-coords -l $LATLON)
+	lon=$(geo-coords -L $LATLON)
+	gpsbabel -i tabsep -f $HOME/Caches/xxx.ts \
+		-x radius,lat=$lat,lon=$lon,distance=999mi \
+		-o tabsep -F $HOME/Caches/999.ts
+	cat $HOME/Caches/temp-caches.ts \
+	    $HOME/Caches/maint.ts \
+	    $HOME/Caches/999.ts \
+	    | head -n495 >$HOME/Caches/sorted.ts
+	# wc -l $HOME/Caches/sorted.ts
+
+	TOMTOM=/media/INTERNAL
+	TOMTOM=/run/media/rick/INTERNAL
+	if mount | grep -q $TOMTOM; then
+	    if [ -d /mnt/tomtom/Garmin/poi ]; then
+		echo "Copying to nuvi 200..."
+		gpsbabel -i tabsep -f $HOME/Caches/999.ts \
+		    -o gpx -F $HOME/Caches/tmp.gpx
+		    gpsbabel -s -i gpx -f $HOME/Caches/tmp.gpx \
+			-o gpx -F $HOME/Caches/999.gpx
+		gpsbabel -i tabsep -f $HOME/Caches/puzzles.ts \
+		    -o gpx -F $HOME/Caches/tmp.gpx
+		    gpsbabel -s -i gpx -f $HOME/Caches/tmp.gpx \
+			-o gpx -F $HOME/Caches/puzzles.gpx
+		gpsbabel -s -i gpx -f $HOME/Caches/mn.gpx \
+		    -o gpx -F $HOME/Caches/mntmp.gpx
+		gpsbabel -i gpx -f $HOME/Caches/999.gpx \
+		    -o garmin_gpi,category="Geocaching",descr,notes,position \
+		     -F /mnt/tomtom/Garmin/poi/geocaching.gpi
+		gpsbabel -i gpx -f $HOME/Caches/puzzles.gpx \
+		    -o garmin_gpi,category="Puzzles",descr,notes,position \
+		    -F /mnt/tomtom/Garmin/poi/puzzles.gpi
+		gpsbabel -i gpx -f $HOME/Caches/mntmp.gpx \
+		    -o garmin_gpi,category="MN",descr,notes,position \
+		    -F /mnt/tomtom/Garmin/poi/mn.gpi
+	    else
+		echo "Copying to tomtom..."
+		cat $HOME/Caches/temp-caches.ts >> $HOME/Caches/999.ts
+		# Unfound
+		geo-suffix < $HOME/Caches/999.ts |
+		    gpsbabel -i tabsep -f - \
+			-o tomtom -F $HOME/Caches/geocaching.ov2
+
+		# Puzzles
+		# cat $HOME/Caches/temp-caches.ts > $HOME/Caches/puzzles.ts
+		egrep "Unknown Cache|	Geocache	" $HOME/Caches/999.ts |
+		    geo-suffix |
+		    gpsbabel -i tabsep -f - \
+                        -o tomtom -F $HOME/Caches/puzzles.ov2
+		gpsbabel -i tomtom -f $HOME/Caches/puzzles.ov2 \
+			-o tabsep -F $HOME/Caches/puzzles.ts
+
+		# Multi
+		grep Multi-cache $HOME/Caches/999.ts |
+		    geo-suffix |
+		    gpsbabel -i tabsep -f - \
+                        -o tomtom -F $HOME/Caches/multi.ov2
+
+		# Found
+		geo-mystery < $HOME/Caches/mn.ts |
+		    geo-suffix |
+		    gpsbabel -i tabsep -f - \
+			-o tomtom -F $HOME/Caches/aamn.ov2
+
+		# Needs Maint
+		if [ $NOGEO = 0 ]; then
+		    geo-suffix $HOME/Caches/maint.ts |
+			gpsbabel -i tabsep -f - \
+			    -o tomtom -F $HOME/Caches/maint.ov2
+		fi
+
+		# opencaching.com
+		geo-suffix < $OCFILE |
+                    gpsbabel -i tabsep -f - \
+                        -o tomtom -F $HOME/Caches/opencaching.ov2
+
+		# opencaching.us
+		geo-suffix < $OKFILE |
+                    gpsbabel -i tabsep -f - \
+                        -o tomtom -F $HOME/Caches/openkaching.ov2
+
+		cp -a \
+		    $HOME/Caches/geocaching.ov2 \
+		    $HOME/Caches/geocaching.bmp \
+		    $HOME/Caches/puzzles.ov2 \
+		    $HOME/Caches/puzzles.bmp \
+		    $HOME/Caches/multi.ov2 \
+		    $HOME/Caches/multi.bmp \
+		    $HOME/Caches/aamn.ov2 \
+		    $HOME/Caches/aamn.bmp \
+		    $HOME/Caches/maint.ov2 \
+		    $HOME/Caches/maint.bmp \
+		    $HOME/Caches/opencaching.ov2 \
+		    $HOME/Caches/opencaching.bmp \
+		    $HOME/Caches/openkaching.ov2 \
+		    $HOME/Caches/openkaching.bmp \
+		    $TOMTOM/USA_and_Canada/
+	    fi
+	fi
+
+echo "Converting waypoints to GPSdrive v2.10+..."
+#rm ~/.gpsdrive/waypoints.db
+cat ~/Caches/999.ts $OCFILE $OKFILE > ~/Caches/xxx.ts
+geo-2gpsdrive -V 2.10 -P -S ~/Caches/xxx.ts
+$HOME/bin/temp-caches -V 2.10
+
+#
+# update-netbook
+#
+update-netbook
+
+if [ "$1" = dylan ]
+then
+    echo "Fetching Dylan's waypoints..."
+    FILE=$HOME/Caches/dylan.ts
+    geo-nearest -f -udyl1231 -pyugioh -n500 -otabsep > $FILE
+    $HOME/bin/temp-caches -otabsep >> $FILE
+fi
+
+for i in $HOME/Caches/??.ts; do
+    base=`basename "$i" .ts`
+    case "$base" in
+    zia) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    zil) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    zks) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    zmo) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    znd) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    zsd) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    zwi) echo "Fetching $i waypoints..."; geo-2gpsdrive -s -S $i;;
+    esac
+done
+
+#
+#	Third, Grab the most recent HTML pages describing the caches
+#
+case `uname -n` in
+*$MASTER*)
+	;;
+*)
+	printf "Fetching HTML... "
+	[ -d ~/Caches ] || mkdir ~/Caches
+	for i in MyFinds DemandQuery1 found mn nd sd ia Owned tmp; do
+		printf "$i "
+		rsync -aL $MASTER:Caches/$i ~/Caches >/dev/null
+	done
+	echo "Done!"
+	;;
+esac
+
+date

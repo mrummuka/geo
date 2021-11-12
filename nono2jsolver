@@ -1,0 +1,107 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert .nono to jsolver format
+
+SYNOPSIS
+    `basename $PROGNAME` [options]
+
+DESCRIPTION
+    Convert .nono to monochrome jsolver format.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert GC5MYCE.nono to jsolver format:
+
+	$ nono2jsolver < ~/proj/caches/GC5MYCE.nono > xxx.jsolver
+
+SEE ALSO
+    geo-nonogram, nono2cross+a, nono2teal
+
+    https://sourceforge.net/projects/jsolver/
+
+    http://webpbn.com/export.cgi
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+awk '
+function chr(c)
+{
+ # force c to be numeric by adding 0
+ return sprintf("%c", c + 0)
+}
+BEGIN {
+    #printf "{"
+}
+/width/ {
+    #printf "%s", chr(48+$2)
+}
+/height/ {
+    #printf "%s\r\n", chr(48+$2)
+}
+/rows/ {
+    inrows=1
+    first = 1
+    #printf "\"ver\":["
+    next
+}
+/columns/ {
+    inrows=0
+    incols=1
+    first = 1
+    #printf "],\"hor\":["
+    printf "#\r\n"
+    next
+}
+inrows == 1 || incols == 1 {
+    if ($0 == "") next
+    for (n = 1; n <= NF; ++n)
+    {
+	printf "%d ", $n
+    }
+    printf "0\r\n"
+}
+END {
+    #printf "]}\n"
+    printf "#\r\n"
+}
+'

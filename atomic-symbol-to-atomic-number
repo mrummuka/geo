@@ -1,0 +1,356 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Atomic Symbol to Atomic Number
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [symbol] ...
+
+DESCRIPTION
+    Atomic Symbol or Name to Atomic Number. Convert from stdin or command line.
+    
+    You can use lowercase for the leading letter; it will convert it to
+    uppercase.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert:
+
+	$ atomic-symbol-to-atomic-number Na Cl Oganesson
+	11 17 118
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+one_word_per_line() {
+    tr -cs "[:alnum:]/" "\n"
+}
+
+#
+#	Main Program
+#
+if [ $# = 0 ]; then
+    cmd=cat
+else
+    cmd="echo $*"
+fi
+$cmd |
+one_word_per_line |
+awk '
+BEGIN {
+    wt[1] = "H"
+    wt[2] = "He"
+    wt[3] = "Li"
+    wt[4] = "Be"
+    wt[5] = "B"
+    wt[6] = "C"
+    wt[7] = "N"
+    wt[8] = "O"
+    wt[9] = "F"
+    wt[10] = "Ne"
+    wt[11] = "Na"
+    wt[12] = "Mg"
+    wt[13] = "Al"
+    wt[14] = "Si"
+    wt[15] = "P"
+    wt[16] = "S"
+    wt[17] = "Cl"
+    wt[18] = "Ar"
+    wt[19] = "K"
+    wt[20] = "Ca"
+    wt[21] = "Sc"
+    wt[22] = "Ti"
+    wt[23] = "V"
+    wt[24] = "Cr"
+    wt[25] = "Mn"
+    wt[26] = "Fe"
+    wt[27] = "Co"
+    wt[28] = "Ni"
+    wt[29] = "Cu"
+    wt[30] = "Zn"
+    wt[31] = "Ga"
+    wt[32] = "Ge"
+    wt[33] = "As"
+    wt[34] = "Se"
+    wt[35] = "Br"
+    wt[36] = "Kr"
+    wt[37] = "Rb"
+    wt[38] = "Sr"
+    wt[39] = "Y"
+    wt[40] = "Zr"
+    wt[41] = "Nb"
+    wt[42] = "Mo"
+    wt[43] = "Tc"
+    wt[44] = "Ru"
+    wt[45] = "Rh"
+    wt[46] = "Pd"
+    wt[47] = "Ag"
+    wt[48] = "Cd"
+    wt[49] = "In"
+    wt[50] = "Sn"
+    wt[51] = "Sb"
+    wt[52] = "Te"
+    wt[53] = "I"
+    wt[54] = "Xe"
+    wt[55] = "Cs"
+    wt[56] = "Ba"
+    wt[57] = "La"
+    wt[58] = "Ce"
+    wt[59] = "Pr"
+    wt[60] = "Nd"
+    wt[61] = "Pm"
+    wt[62] = "Sm"
+    wt[63] = "Eu"
+    wt[64] = "Gd"
+    wt[65] = "Tb"
+    wt[66] = "Dy"
+    wt[67] = "Ho"
+    wt[68] = "Er"
+    wt[69] = "Tm"
+    wt[70] = "Yb"
+    wt[71] = "Lu"
+    wt[72] = "Hf"
+    wt[73] = "Ta"
+    wt[74] = "W"
+    wt[75] = "Re"
+    wt[76] = "Os"
+    wt[77] = "Ir"
+    wt[78] = "Pt"
+    wt[79] = "Au"
+    wt[80] = "Hg"
+    wt[81] = "Tl"
+    wt[82] = "Pb"
+    wt[83] = "Bi"
+    wt[84] = "Po"
+    wt[85] = "At"
+    wt[86] = "Rn"
+    wt[87] = "Fr"
+    wt[88] = "Ra"
+    wt[89] = "Ac"
+    wt[90] = "Th"
+    wt[91] = "Pa"
+    wt[92] = "U"
+    wt[93] = "Np"
+    wt[94] = "Pu"
+    wt[95] = "Am"
+    wt[96] = "Cm"
+    wt[97] = "Bk"
+    wt[98] = "Cf"
+    wt[99] = "Es"
+    wt[100] = "Fm"
+    wt[101] = "Md"
+    wt[102] = "No"
+    wt[103] = "Lr"
+    wt[104] = "Rf"
+    wt[105] = "Db"
+    wt[106] = "Sg"
+    wt[107] = "Bh"
+    wt[108] = "Hs"
+    wt[109] = "Mt"
+    wt[110] = "Ds"
+    wt[111] = "Rg"
+    wt[112] = "Uub"
+    wt[112] = "Cn"
+    wt[113] = "Uut"
+    wt[113] = "Nh"
+    wt[114] = "Fl"
+    wt[115] = "Uup"
+    wt[115] = "Mc"
+    wt[116] = "Uuh"
+    wt[116] = "Lv"
+    wt[117] = "Uus"
+    wt[117] = "Ts"
+    wt[118] = "Uuo"
+    wt[118] = "Og"
+
+    name[1] = "Hydrogen"
+    name[2] = "Helium"
+    name[3] = "Lithium"
+    name[4] = "Beryllium"
+    name[5] = "Boron"
+    name[6] = "Carbon"
+    name[7] = "Nitrogen"
+    name[8] = "Oxygen"
+    name[9] = "Fluorine"
+    name[10] = "Neon"
+    name[11] = "Sodium"
+    name[12] = "Magnesium"
+    name[13] = "Aluminum"
+    name[14] = "Silicon"
+    name[15] = "Phosphorus"
+    name[16] = "Sulfur"
+    name[17] = "Chlorine"
+    name[18] = "Argon"
+    name[19] = "Potassium"
+    name[20] = "Calcium"
+    name[21] = "Scandium"
+    name[22] = "Titanium"
+    name[23] = "Vanadium"
+    name[24] = "Chromium"
+    name[25] = "Manganese"
+    name[26] = "Iron"
+    name[27] = "Cobalt"
+    name[28] = "Nickel"
+    name[29] = "Copper"
+    name[30] = "Zinc"
+    name[31] = "Gallium"
+    name[32] = "Germanium"
+    name[33] = "Arsenic"
+    name[34] = "Selenium"
+    name[35] = "Bromine"
+    name[36] = "Krypton"
+    name[37] = "Rubidium"
+    name[38] = "Strontium"
+    name[39] = "Yttrium"
+    name[40] = "Zirconium"
+    name[41] = "Niobium"
+    name[42] = "Molybdenum"
+    name[43] = "Technetium"
+    name[44] = "Ruthenium"
+    name[45] = "Rhodium"
+    name[46] = "Palladium"
+    name[47] = "Silver"
+    name[48] = "Cadmium"
+    name[49] = "Indium"
+    name[50] = "Tin"
+    name[51] = "Antimony"
+    name[52] = "Tellurium"
+    name[53] = "Iodine"
+    name[54] = "Xenon"
+    name[55] = "Cesium"
+    name[56] = "Barium"
+    name[57] = "Lanthanum"
+    name[58] = "Cerium"
+    name[59] = "Praseodymium"
+    name[60] = "Neodymium"
+    name[61] = "Promethium"
+    name[62] = "Samarium"
+    name[63] = "Europium"
+    name[64] = "Gadolinium"
+    name[65] = "Terbium"
+    name[66] = "Dysprosium"
+    name[67] = "Holmium"
+    name[68] = "Erbium"
+    name[69] = "Thulium"
+    name[70] = "Ytterbium"
+    name[71] = "Lutetium"
+    name[72] = "Hafnium"
+    name[73] = "Tantalum"
+    name[74] = "Tungsten"
+    name[75] = "Rhenium"
+    name[76] = "Osmium"
+    name[77] = "Iridium"
+    name[78] = "Platinum"
+    name[79] = "Gold"
+    name[80] = "Mercury"
+    name[81] = "Thallium"
+    name[82] = "Lead"
+    name[83] = "Bismuth"
+    name[84] = "Polonium"
+    name[85] = "Astatine"
+    name[86] = "Radon"
+    name[87] = "Francium"
+    name[88] = "Radium"
+    name[89] = "Actinium"
+    name[90] = "Thorium"
+    name[91] = "Protactinium"
+    name[92] = "Uranium"
+    name[93] = "Neptunium"
+    name[94] = "Plutonium"
+    name[95] = "Americium"
+    name[96] = "Curium"
+    name[97] = "Berkelium"
+    name[98] = "Californium"
+    name[99] = "Einsteinium"
+    name[100] = "Fermium"
+    name[101] = "Mendelevium"
+    name[102] = "Nobelium"
+    name[103] = "Lawrencium"
+    name[104] = "Rutherfordium"
+    name[105] = "Dubnium"
+    name[106] = "Seaborgium"
+    name[107] = "Bohrium"
+    name[108] = "Hassium"
+    name[109] = "Meitnerium"
+    name[110] = "Darmstadtium"
+    name[111] = "Roentgenium"
+    name[112] = "Copernicium"
+    name[113] = "Nihonium"
+    name[114] = "Flerovium"
+    name[115] = "Moscovium"
+    name[116] = "Livermorium"
+    name[117] = "Tennessine"
+    name[118] = "Oganesson"
+}
+{
+    text = toupper(substr($1, 1, 1)) tolower(substr($1, 2))
+
+    if ("Aluminium" == text)
+    {
+	printf "13 "	# UK spelling
+	next
+    }
+    # slow, but does the job, wt[*] was stolen from atomic-number-to-text!
+    for (i in wt)
+    {
+	if (text == "Uub") { printf "112 "; next }
+	if (text == "Uut") { printf "113 "; next }
+	if (text == "Uup") { printf "115 "; next }
+	if (text == "Uuh") { printf "116 "; next }
+	if (text == "Uus") { printf "117 "; next }
+	if (text == "Uuo") { printf "118 "; next }
+	if (wt[i] == text)
+	{
+	    printf "%d ", i
+	    next
+	}
+	if (name[i] == text)
+	{
+	    printf "%d ", i
+	    next
+	}
+	# Decimal, 7 == N, 16 == S, 74 == W
+	if ( (text+0) == i)
+	{
+	    printf "%s ", wt[i]
+	    next
+	}
+    }
+    printf "<%d> ", text
+}
+END { printf "\n" }
+'

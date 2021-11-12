@@ -1,0 +1,247 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - base to base conversion to/from base 2 thru 62
+
+SYNOPSIS
+    `basename $PROGNAME` [options] num ...
+
+DESCRIPTION
+    Base to base conversion to or from base 2 through 62.
+
+    If the high input base is less than 37, then upper/lower case is ignored,
+    e.g. 1a == 1A == decimal 26.
+
+    Otherwise, lowercase then uppercase (-l) or uppercase then lowercase (-u)
+    is used.
+
+    Note: Uppercase before lowercase is what the websites
+	- https://jalu.ch/coding/base_converter.php
+	- http://convertxy.com/index.php/numberbases
+
+    use. e.g.:
+
+    0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+
+    Note: Lowercase before uppercase is what the websites
+	- https://www.geocachingtoolbox.com/index.php?page=baseConversion
+	- https://www.dcode.fr/base-n-convert
+
+    use. e.g.:
+
+    0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+
+OPTIONS
+    -l		Lowercase before uppercase (default)
+    -u		Uppercase before lowercase
+    -2          Set ilo=ihi=2 and olo=ohi=10.  I.E. binary to decimal
+    -8          Set ilo=ihi=8 and olo=ohi=10.  I.E. octal to decimal
+    -16         Set ilo=ihi=16 and olo=ohi=10. I.E. hexadecimal to decimal
+    -36         Set ilo=ihi=36 and olo=ohi=10. I.E. base 36 to decimal
+    -i ilow     Input base low [$ilo]
+    -I ihigh    Input base high [$ihi]
+    -o olow     Output base low [$olo]
+    -O ohigh    Output base high [$ohi]
+    -k base	Set ilo=iho=base
+    -K base	Set olo=oho=base
+    -D lvl      Debug level
+
+EXAMPLE
+    Solve https://coord.info/GC735DC :
+
+    $ anybase2anybase -u -i 38 -I 41 -o 50 -O 55 FTB3WY
+
+	_
+	     |OBASE
+	IBASE|     50      51      52      53      54      55  
+	-----+-----------------------------------------------
+	38   | 3nkgCc  3VaCdH  3El8DY  2qJShk  2cpi98  2QUggS  
+	39   | 4RIiMS *463834* 3cIki8  3L5SSR  356rQe  2jGXi8  
+	40   | 57bU2E  4Y6Do7  4CH1Tk  3j8Zo9  3ROW1S  3B2ZR4  
+	41   | 5fELg4  5E5K55  4epc1O  4IcUik  3q5ck8  3XqQCi  
+
+    $ anybase2anybase -u -i 52 -I 55 -o 10 -O 14 002rPo1
+
+	_
+	     |OBASE
+	IBASE|       10        11        12        13        14  
+	-----+-------------------------------------------------
+	52   | 22145657  115563A6   74BB935   4784C51   2D26809  
+	53   | 23744319  12448505   7B50B13   4BC47C1   322126B  
+	54   | 25427305  13397A02   8622A61  *5363857*  353C721  
+	55   | 27197501  14396981   9137365   58334C6   387D8A9  
+EOF
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+ilo=8
+ihi=16
+olo=8
+ohi=16
+DEBUG=0
+UL=l
+while getopts "lu1:23:8i:I:o:O:k:K:D:h?" opt
+do
+        case $opt in
+	l)	UL=l;;
+	u)	UL=u;;
+        1)     	case "$OPTARG" in
+		6)	ilo=16; ihi=16; olo=10; ohi=10;;
+		*)	error "only -16 is implemented"
+		esac;;
+        3)     	case "$OPTARG" in
+		6)	ilo=36; ihi=36; olo=10; ohi=10;;
+		*)	error "only -36 is implemented"
+		esac;;
+        2)      ilo=2; ihi=2; olo=10; ohi=10;;
+        8)      ilo=8; ihi=8; olo=10; ohi=10;;
+        i)      ilo="$OPTARG";;
+        I)      ihi="$OPTARG";;
+        o)      olo="$OPTARG";;
+        O)      ohi="$OPTARG";;
+	k)	ilo="$OPTARG"; ihi="$OPTARG";;
+	K)	olo="$OPTARG"; ohi="$OPTARG";;
+        D)      DEBUG="$OPTARG";;
+        h|\?)   usage;;
+        esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $ilo -lt 2 -o $ihi -gt 62 ]; then
+    error "Input base not in range (2-62)"
+fi
+if [ $olo -lt 2 -o $ohi -gt 62 ]; then
+    error "Output base not in range (2-62)"
+fi
+
+if [ $# = 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+base2decimal()
+{
+    inbase=$1
+    val=$2
+    awk -v UL=$UL -v inbase=$inbase -v val=$val '
+    BEGIN {
+	if (UL == "l")
+	   base="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	else
+	   base="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	r = 0
+	sign = 1
+	if (substr(val, 1, 1) == "-")
+	{
+	    val = substr(val, 2)
+	    sign = -1
+	}
+	k = length(val)
+	if (inbase <= 62)
+	{
+	    for (i = 1; i <= k; i++)
+	    {
+		r *= inbase
+		c = tolower( substr(val, i, 1) )
+		c = substr(val, i, 1)
+		cc = index(base, c) - 1
+		r = r + int(cc)
+		# old: r = r + int(substr(val, i, 1))
+	    }
+	    print sign*r
+	}
+    }
+    '
+}
+decimal2base()
+{
+    outbase=$1
+    val=$2
+    awk -v UL=$UL -v outbase=$outbase -v val=$val '
+    BEGIN {
+	if (UL == "l")
+	   base="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	else
+	   base="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	if (outbase <= 62)
+	{
+	    r=""
+	    while (val)
+	    {
+		#r = val % outbase "" r
+		d = substr(base, val%outbase+1, 1)
+		r = d "" r
+		val = int(val/outbase)
+	    }
+	    printf "%s ", r
+	}
+    }
+    '
+}
+
+for i in $*; do
+    if [ "$ihi" -le 36 ]; then
+	if [ $UL = l ]; then
+	    # if the input base is less than or equal to 36, convert to lc
+	    i=`echo $i | tr A-Z a-z`
+	elif [ $UL = u ]; then
+	    # if the input base is less than or equal to 36, convert to uc
+	    i=`echo $i | tr a-z A-Z`
+	fi
+    fi
+    # Compute the largest value in the matrix
+    ti=`base2decimal $ihi $i`
+    to=`decimal2base $olo $ti`
+    len=`expr length $to`
+    if [ "$len" -lt 4 ]; then
+        len=4
+    fi
+    #
+    printf "     | OBASE\n"
+    printf "IBASE| "
+    for (( obase=$olo; obase <= $ohi; ++obase )); do
+	printf "%*d  " $len "$obase"
+    done
+    echo
+    echo -n "-----+-"
+    for (( obase=$olo; obase <= $ohi; ++obase )); do
+	printf "%*.*s" $len $len \
+	    "-----------------------------------------------------------------"
+	if [ $obase -lt $ohi ]; then
+	    printf -- "--"
+	fi
+    done
+    echo
+    for (( ibase=$ilo; ibase <= $ihi; ++ibase )); do
+	printf "%2d   | " $ibase
+	for (( obase=$olo; obase <= $ohi; ++obase )); do
+	    ti=`base2decimal $ibase $i`
+	    to=`decimal2base $obase $ti`
+	    printf "%*.*s  " $len $len $to
+	done
+	echo
+    done
+done

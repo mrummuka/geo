@@ -1,0 +1,198 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - ASCII text to QR barcode converter
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file]
+
+DESCRIPTION
+    ASCII text to QR barcode converter. For a row, you can use blank
+    separated 0's and 1's, OR one binary number.
+
+    row1:	1 1 1 1 1 1 1 0 0 0 0 0 1 0 1 1 1 1 1 1 1
+
+    OR:
+
+    row1:	111111100000101111111
+
+OPTIONS
+	-p png-file	Convert and image it into a PNG png-file
+	-P pdf-file	Convert and image it into a PDF pdf-file
+	-s SIZE		Size for PDF or PNG files [$SIZE]
+	-D lvl		Debug level
+
+EXAMPLE
+    Convert GC4ZTE2:
+
+	$ geo-text2qrcode GC4ZTE2.txt 
+	██████████████          ██  ██████████████
+	██          ██  ██  ████    ██          ██
+	██  ██████  ██  ██  ████    ██  ██████  ██
+	██  ██████  ██    ██  ████  ██  ██████  ██
+	██  ██████  ██  ████████    ██  ██████  ██
+	██          ██  ██████      ██          ██
+	██████████████  ██  ██  ██  ██████████████
+			██    ██                 
+	████  ██    ████    ██      ██████  ████ 
+	████  ██  ██      ██    ██        ██    ██
+	████  ████  ██      ██      ██    ████   
+	████████  ██    ██    ██    ████      ██ 
+	████    ██  ██████      ████  ██  ████  ██
+			██  ████████             
+	██████████████  ██        ████  ██  ██████
+	██          ██    ██    ████      ██    ██
+	██  ██████  ██    ████████  ██  ████  ██ 
+	██  ██████  ██  ██        ████  ████  ████
+	██  ██████  ██      ██  ██  ████  ████  ██
+	██          ██  ██      ██      ██  ██  ██
+	██████████████  ██████  ████  ██  ████   
+
+
+	$ cat GC4ZTE2.txt 
+	1 1 1 1 1 1 1 0 0 0 0 0 1 0 1 1 1 1 1 1 1
+	1 0 0 0 0 0 1 0 1 0 1 1 0 0 1 0 0 0 0 0 1
+	1 0 1 1 1 0 1 0 1 0 1 1 0 0 1 0 1 1 1 0 1
+	1 0 1 1 1 0 1 0 0 1 0 1 1 0 1 0 1 1 1 0 1
+	1 0 1 1 1 0 1 0 1 1 1 1 0 0 1 0 1 1 1 0 1
+	1 0 0 0 0 0 1 0 1 1 1 0 0 0 1 0 0 0 0 0 1
+	1 1 1 1 1 1 1 0 1 0 1 0 1 0 1 1 1 1 1 1 1
+	0 0 0 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0
+	1 1 0 1 0 0 1 1 0 0 1 0 0 0 1 1 1 0 1 1 0
+	1 1 0 1 0 1 0 0 0 1 0 0 1 0 0 0 0 1 0 0 1
+	1 1 0 1 1 0 1 0 0 0 1 0 0 0 1 0 0 1 1 0 0
+	1 1 1 1 0 1 0 0 1 0 0 1 0 0 1 1 0 0 0 1 0
+	1 1 0 0 1 0 1 1 1 0 0 0 1 1 0 1 0 1 1 0 1
+	0 0 0 0 0 0 0 0 1 0 1 1 1 1 0 0 0 0 0 0 0
+	1 1 1 1 1 1 1 0 1 0 0 0 0 1 1 0 1 0 1 1 1
+	1 0 0 0 0 0 1 0 0 1 0 0 1 1 0 0 0 1 0 0 1
+	1 0 1 1 1 0 1 0 0 1 1 1 1 0 1 0 1 1 0 1 0
+	1 0 1 1 1 0 1 0 1 0 0 0 0 1 1 0 1 1 0 1 1
+	1 0 1 1 1 0 1 0 0 0 1 0 1 0 1 1 0 1 1 0 1
+	1 0 0 0 0 0 1 0 1 0 0 0 1 0 0 0 1 0 1 0 1
+	1 1 1 1 1 1 1 0 1 1 1 0 1 1 0 1 0 1 1 0 0
+
+    Convert GC4XPY4 and image to a PDF file:
+
+	$ geo-text2qrcode -P xxx.pdf GC4XPY4.txt
+	Then: http://online-barcode-reader.inliteresearch.com/
+
+    Convert GC4XPY4 and image to a PNG file:
+
+	$ geo-text2qrcode -p xxx.png GC4XPY4.txt
+	Then: http://zxing.org/w/decode.jspx
+	Or: http://online-barcode-reader.inliteresearch.com/
+
+SEE ALSO
+    http://online-barcode-reader.inliteresearch.com/
+    http://zxing.org/w/decode.jspx
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+PDFFILE=
+PNGFILE=
+SIZE=8
+while getopts "p:P:s:D:h?" opt
+do
+	case $opt in
+	p)	case "$OPTARG" in
+		*.png|*.PNG)	PNGFILE="$OPTARG";;
+		*)		error "PNG file ends with '*.png'";;
+		esac
+		;;
+	P)	case "$OPTARG" in
+		*.pdf|*.PDF)	PDFFILE="$OPTARG";;
+		*)		error "PDF file ends with '*.pdf'";;
+		esac
+		;;
+	s)	SIZE="$OPTARG"
+		if [ $SIZE -lt 1 -o $SIZE -gt 9 ]; then
+		    error "Size is out of range 1-9"
+		fi
+		;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+doit() {
+    cat $1 | while read first line; do
+    case "$first" in
+    0|1)        echo "$first $line";;
+    *)          echo "$first" | sed "s/./& /g";;
+    esac
+    done | sed -e 's/1 /██/g' -e 's/1/██/g' -e 's/0/ /g' -e '/^$/d'
+}
+
+#
+# because Ubuntu 8.04 does not have it
+#
+interline() {
+    a=`convert -interline-spacing -1 2>&1 | grep "unrecognized option"`
+    if [ "$a" = "" ]; then 
+	echo 0
+    else
+	echo 1
+    fi
+}
+
+image_convert() {
+    # The font should be FreeMono, but older convert's (say, from Fedora 17)
+    # don't have it...
+    # convert -list font | grep Font.*Mono
+    if [ `interline` = 0 ]; then
+	interline="-interline-spacing -1"
+    else
+	interline=""
+    fi
+    convert -background white -fill black \
+	-font DejaVu-Sans-Mono-Bold $interline -pointsize 12 \
+	label:@- $1
+}
+
+check_uniprint() {
+    if ! type uniprint >/dev/null 2>&1; then
+	error "No uniprint: Try: yum install yudit OR apt-get install yudit"
+    fi
+}
+
+#
+#	Main Program
+#
+if [ "$PDFFILE" != "" ]; then
+    doit $1 | image_convert $PDFFILE
+    # doit $1 \
+    # | uniprint -out - -size $SIZE -hsize 0 \
+    #	    -font /usr/share/fonts/gnu-free/FreeMono.ttf 2>/dev/null \
+    # | ps2pdf - $PDFFILE
+    # doit $1 | paps | ps2pdf - $PDFFILE
+elif [ "$PNGFILE" != "" ]; then
+    doit $1 | image_convert $PNGFILE
+else
+    doit $1
+fi

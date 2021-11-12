@@ -1,0 +1,145 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Replace name with name/TypeSizeDiffTerr/gcid/LatLon
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file]
+
+DESCRIPTION
+    Process a "tabsep" format on stdin or "file" and produce a "tabsep" format
+    on stdout.  Replace name with name/TypeSizeDiffTerr/gcid/LatLon.
+
+	Type	Tr, Mu, Un, etc.
+	Size	Mi, Sm, Re, etc.
+	Diff	1, 1+, 2, 2+, etc.
+	Terr	1, 1+, 2, 2+, etc.
+	gcid	GC1H6YH equals 1H6YH
+	Lat	last 3 digits of latitude
+	Lon	last 3 digits of longitude
+
+    Also, print only "Events" if they are one day before or on the actual day.
+
+    For TomTom, nuvi, etc.
+
+EXAMPLES
+    Convert to TomTom:
+
+	geo-suffix < example.ts |
+	    gpsbabel -i tabsep -f -
+		-o tomtom -F /mnt/tomtom/USA_and_Canada/geocaching.ov2
+
+    Name change:
+
+	geo-suffix ~/xxx.ts | awk -F "        "  '{ print \$3 }'
+	OBG:NoMoreM/TrSm22+/1H6YH/132376
+	OBG:MonsterM/TrSm22/1HBZ5/100511
+	GreeniesandG/TrSm22/1HBZM/970265
+	OBG:LoveThe/TrRe1+1+/14XXG/932547
+	OBG:LovePoti/TrUn22/1HC0G/893424
+	OBG:Treasure/TrUn22/1HC1J/052037
+	MarkSpitzenH/TrRe22/1HC1T/968696
+	Psychedelia:N/TrUn1+1+/R70X/916066
+	Plato'sFiveG/UnRe2+2+/1H5EY/469495
+
+OPTIONS
+    -D lvl	Debug level
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+#unset OPTIND
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+yyyymmdd=`date +%Y%m%d`
+#yyyymmdd=20101105
+awk -F'	' -v yyyymmdd=$yyyymmdd '
+{
+    type = $25
+    date = $29
+    if (type ~ "Event" && date < yyyymmdd)
+        next    # Too Late
+    else if (type ~ "Event" && (date >= yyyymmdd+0 && date <= yyyymmdd+1) )
+        {}      # Just Right!
+    else if (type ~ "Event" && date > yyyymmdd)
+        next    # Too early!
+
+    #$3=ddd
+    for (i = 1; i <= 2; ++i)
+	printf "%s\t", $i
+
+    name = ""
+    for (i = 1; i <= 14; ++i)
+    {
+	ch = substr($3, i, 1)
+	if (ch != " ")
+	    name = name ch
+    }
+
+    diff = substr($22, 1, 1)
+    if (substr($22, 3, 1) == "5")
+	diff = diff "+"
+
+    terr = substr($23, 1, 1)
+    if (substr($23, 3, 1) == "5")
+	terr = terr "+"
+
+    gc = substr($2, 3)
+
+    v = $8
+    i = int(v); f = (v-i)*60; if(f<0) f=-f
+    i = int(f); f = (f-i);
+    n = substr(f "000", 3, 3)
+
+    # print v, i, f, n
+
+    v = $9
+    i = int(v); f = (v-i)*60; if(f<0) f=-f
+    i = int(f); f = (f-i);
+    w = substr(f "000", 3, 3)
+
+    # print v, i, f, w
+
+    size = $24
+    if (type ~ "Event")
+	suffix = "Ev" "/" date "/" gc "/" n w
+    else
+	suffix = substr(type, 1, 2) substr(size, 1 , 2) diff terr "/" gc "/" n w
+    printf "%s\t", name "/" suffix
+    for (i = 4; i <= NF; ++i)
+	printf "%s\t", $i
+    printf "\n"
+}' $*

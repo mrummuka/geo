@@ -1,0 +1,72 @@
+#!/bin/sh
+
+usage() {
+	cat <<EOF
+NAME
+	geo-rehides - Output a new GPX file containing just rehides
+
+SYNOPSIS
+	geo-rehides finder-name file.gpx > rehides.gpx
+
+        Requires: A subscriber login at http://www.geocaching.com.
+
+DESCRIPTION
+	Output a new GPX file containing just rehides as far as
+	finder-name is concerned (e.g. date placed > date found).
+EOF
+
+	exit 1
+}
+
+if [ $# != 2 ]; then
+    usage
+fi
+
+FINDER=$1
+shift
+
+awk -F'[<>]' -v FINDER="$FINDER" '
+/<wpt / {
+    inwpt = 1
+    line = 0
+    time = ""
+}
+/<time>/			{ time = substr($3,1,10) }
+/<name>/			{ name = $3 }
+/<desc>/			{ desc = $3 }
+/<groundspeak:log>/		{ found = 0 }
+/<groundspeak:date>/		{ mytime = substr($3,1,10) }
+/<groundspeak:type>Found it</	{ found = 1 }
+/<groundspeak:finder / {
+    finder = $3
+    if (FINDER == finder)
+    {
+	if (time <= mytime && found)
+	    dumpit = 2;
+	else if (time > mytime && found && dumpit == 0)
+	{
+	    # printf "%s %s %s\n", desc, time, mytime > "/dev/tty"
+	    dumpit = 1
+	    found = 0
+	    time = ""
+	}
+    }
+}
+/<\/wpt>/ {
+    inwpt = 0
+    if (dumpit == 1)
+    {
+	for (i = 0; i < line; ++i)
+	    print buf[i]
+	print
+    }
+    dumpit = 0
+    next
+}
+{
+    if (inwpt)
+	buf[line++] = $0
+    else
+	print
+}
+' "$*"

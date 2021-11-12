@@ -1,0 +1,119 @@
+#!/usr/bin/perl -w
+ 
+=head1 NAME 
+
+    gpx-ftf - Display FTF cache logs for a finder from a GPX file
+
+=head1 SYNOPSIS
+
+    gpx-ftf [options] finder-name gpx-file
+
+=head1 USAGE
+
+    -D level	Debug level
+
+=head1 EXAMPLES
+
+=cut
+
+use strict;
+
+sub usage
+{
+    system "pod2text $0";
+    exit 1;
+}
+
+#
+# process command line arguments
+#
+use Getopt::Std;
+my %Opt;
+
+$Opt{f} = "yyy";
+
+getopts("D:f:h\?", \%Opt);
+ 
+if ($Opt{h} || $Opt{'?'}) {
+    &usage();
+}
+
+###############################################################################
+#
+# Main script
+#
+###############################################################################
+use XML::Twig;
+use Text::Wrap;
+$Text::Wrap::columns = 72;
+
+if (@ARGV < 2) {
+    &usage();
+}
+my $Who = shift(@ARGV);
+my $count = 0;
+my $count2 = 0;
+my $count3 = 0;
+ 
+sub wpt
+{
+my $sep =
+"---------------------------------------------------------------------------\n";
+    my ($twig, $wpt) = @_;
+    my $cid = $wpt->first_child('groundspeak:cache')->att('id');
+    my $gcid = $wpt->first_child_text('name');
+    my $desc = $wpt->first_child_text('desc');
+    my $tm = $wpt->first_child_text('time');
+
+    my $gcache = $wpt->last_child('groundspeak:cache');
+    my $name = $gcache->first_child_text('groundspeak:name');
+	$name =~ s/&apos;/\'/g;
+	$name =~ s/&quot;/\'/g;
+    my $owner = $gcache->last_child_text('groundspeak:placed_by');
+    my $logs = $gcache->first_child('groundspeak:logs');
+    my $log = $logs->first_child('groundspeak:log');
+    while ($log) {
+	my $finder = $log->last_child_text('groundspeak:finder');
+	my $type = $log->last_child_text('groundspeak:type');
+	my $date = substr($log->last_child_text('groundspeak:date'), 0, 10);
+	my $text = $log->last_child_text('groundspeak:text');
+
+	if ($Who eq "" || $Who eq $finder) {
+	    $text =~ s/&apos;/\'/g;
+	    $text =~ s/&quot;/\'/g;
+	    $type =~ s/&apos;/\'/g;
+
+	    if ($text =~ /^.*FTF.*$/) {
+		print "$sep";
+		print "$gcid $name.  ";
+		print "$finder $type $date.\n";
+		print "$sep";
+
+		print wrap("    ", "    ", "$text");
+		print "\n";
+		print "\n";
+		++$count;
+	    }
+	    if ($text =~ /^FTF /) {
+		++$count2;
+	    }
+	    if ($text =~ /FTF/) {
+		++$count3;
+	    }
+	}
+	$log = $log->next_sibling;
+    }
+    $twig->purge;
+}
+ 
+while (my $gpxfile = shift(@ARGV)) {
+    my $twig = new XML::Twig(
+		    TwigHandlers => {'wpt' => \&wpt},
+		    input_filter => 'safe');
+ 
+    $twig->parsefile($gpxfile);
+}
+
+print "FTF's for $Who is $count. (/^.*FTF.*\$/)\n";
+print "FTF's for $Who is $count2. (/^FTF /)\n";
+print "FTF's for $Who is $count3. (/FTF/)\n";

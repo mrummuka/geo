@@ -1,0 +1,150 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Calculate the scale, image width/height and lat/lon
+
+SYNOPSIS
+	`basename $PROGNAME` [options] scale latUL lonUL lat LR lonLR
+
+DESCRIPTION
+	Calculate the scale, image width/height and lat/lon center point
+	command line arguments for geo-map that will enclose a lat/lon
+	rectangle at the specified scale factor.
+
+OPTIONS
+	-P pixelfact	Override the default pixel factor [$PIXELFACT]
+	-D lvl		Debug level
+
+EXAMPLE
+	Calculate the scale...
+
+	    $ rect2geomap 50000 45.25 -93.375 44.75 -92.675
+	    -s50000 -W3113 -H3131 45 -93.025
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+PIXELFACT=2817.947378
+DEBUG=0
+#unset OPTIND
+while getopts "P:D:h?" opt
+do
+	case $opt in
+	P)	PIXELFACT="$OPTARG";;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if [ $# != 5 ]; then
+	error "There must be 5 positional parameters: scale lat lon lat lon"
+	usage
+fi
+
+#
+#	Main Program
+#
+
+SCALE=$1
+LATmax=$2
+LONmin=$3
+LATmin=$4
+LONmax=$5
+
+#
+# Adjust mapscale units
+#
+case "$SCALE" in
+*[Kk]) SCALE=`echo $SCALE | sed 's/[Kk]/ 1000*p/' | dc`;;
+*[Mm]) SCALE=`echo $SCALE | sed 's/[Mm]/ 1000000*p/' | dc`;;
+esac
+
+calc_dist() {
+    awk \
+    -v LATmin=$1 \
+    -v LONmin=$2 \
+    -v LATmax=$3 \
+    -v LONmax=$4 \
+    '
+    function calcR(lat)
+    {
+        lat = lat * M_PI_180
+        sc = sin(lat)
+        x = A * (1.0 - E2)
+        z = 1.0 - E2 * sc * sc
+        y = z ^ 1.5
+        r = x / y
+        return r * 1000.0
+    }
+
+    function asin(x)    { return atan2(x,(1.-x^2)^0.5) }
+
+    # Rough calculation of distance on an ellipsoid
+    function dist(lat1, lon1, lat2, lon2,
+                    radiant, dlon, dlat, a1, a2, a, sa, c)
+    {
+        radiant = M_PI_180
+        dlon = radiant * (lon1 - lon2);
+        dlat = radiant * (lat1 - lat2);
+        a1 = sin(dlat / 2.0)
+        a2 = sin (dlon / 2.0)
+        a = (a1 * a1) + cos(lat1 * radiant) * cos(lat2 * radiant) * a2 * a2
+        sa = sqrt(a)
+        if (sa <= 1.0)
+            c = 2 * asin(sa)
+        else
+            c = 2 * asin(1.0)
+        return (Ra[int(100 + lat2)] + Ra[int(100 + lat1)]) * c / 2.0;
+    }
+
+    BEGIN {
+        A = 6378.137
+        E2 = 0.081082 * 0.081082
+        M_PI = 3.14159265358979323846
+        M_PI_180 = M_PI / 180.0
+        # Build array for earth radii
+        for (i = -100; i <= 100; i++)
+            Ra[i+100] = calcR(i)
+
+        dlat = dist(LATmin, LONmin, LATmax, LONmin)
+        dlon = dist(LATmin, LONmin, LATmin, LONmax)
+	printf "%d %d\n", dlat, dlon
+    }
+    '
+}
+
+
+LATcenter=`awk -v v1=$LATmin -v v2=$LATmax 'BEGIN{print (v1+v2)/2}'`
+LONcenter=`awk -v v1=$LONmin -v v2=$LONmax 'BEGIN{print (v1+v2)/2}'`
+
+# echo "$LATcenter $LONcenter"
+
+calc_dist $LATmin $LONmin $LATmax $LONmax > /tmp/dist
+read disty distx < /tmp/dist
+
+W=`awk -vm=$distx -vf=$PIXELFACT -vs=$SCALE 'BEGIN{print int((f*m)/s)}'`
+H=`awk -vm=$disty -vf=$PIXELFACT -vs=$SCALE 'BEGIN{print int((f*m)/s)}'`
+echo "-s$SCALE -W$W -H$H -- $LATcenter $LONcenter"

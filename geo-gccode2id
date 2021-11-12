@@ -1,0 +1,144 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert GC codes to the decimal equivalent
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [GC-code] ...
+
+DESCRIPTION
+    Convert GC codes to the decimal equivalent.  Can use command line
+    arguments or stdin.
+
+OPTIONS
+    -g		Print out the gallery for unpublished caches
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert codes:
+
+	$ geo-gccode2id gcc8 gcff gcg000 gczzzz gc10000 GC588H3 GCAG9X3
+	GCC8    200
+	GCFF    255
+	GCG000  65536
+	GCZZZZ  512400
+	GC10000 512401
+	GC588H3 4453031
+	GCAG9X3 9310266
+
+    Print out the gallery for an unpublished cache:
+
+	$ geo-gccode2id -g GC54BET
+	GC54BET 4336679 http://www.geocaching.com/seek/gallery.aspx?id=4336679
+
+    Convert https://coord.info/GC7P262 by stdin:
+
+	$ geo-gccode2id
+	3632B
+	4C82D
+	4C82Z
+	4MVAK
+	3876K
+	3632B   2541145
+	4C82D   3648219
+	4C82Z   3648236
+	4MVAK   3904099
+	3876K   2604703
+
+SEE ALSO
+    geo-id2gccode
+	
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+GALLERY=0
+while getopts "gD:h?" opt
+do
+	case $opt in
+	g)	GALLERY=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+code2id()
+{
+    awk -v GALLERY=$GALLERY '
+    function hex2dec(x,   val) {
+        for (val = 0; length(x); x = substr(x, 2))
+            val = 16*val + index("0123456789ABCDEF", substr(x, 1, 1)) - 1
+        return val
+    }
+
+    function code2id(wp,    val) {
+        sub("^GC|^TB|^PR", "", wp)
+        if (DEBUG > 5)
+            print "wp2id: " wp " ..." > "/dev/stderr"
+        if (length(wp) <= 4 && wp < "G000")
+        {
+            val = hex2dec(wp)
+            if (DEBUG > 5)
+                print "wp2id hex: " val " ..." > "/dev/stderr"
+            #if (val >= 0)
+                return val
+        }
+        set = "0123456789ABCDEFGHJKMNPQRTVWXYZ"
+        val = 0
+        for (pos = 1; pos <= length(wp); ++pos)
+        {
+            val *= 31;
+            val += index(set, substr(wp, pos, 1)) - 1;
+        }
+        val = val - 411120
+        if (DEBUG > 5)
+            print "wp2id id: " val " ..." > "/dev/stderr"
+        return val
+    }
+    length == 0 {
+	next
+    }
+    {
+	id = code2id($0)
+	printf "%s	%s", $0, id
+	if (GALLERY)
+	    printf "\thttp://www.geocaching.com/seek/gallery.aspx?id=%d\n", id
+	else
+	    printf "\n"
+    }'
+}
+
+if [ $# = 0 ]; then
+    tr '[a-z]' '[A-Z]' | code2id
+else
+    for i in $*; do
+	echo $i
+    done | tr '[a-z]' '[A-Z]' | code2id
+fi

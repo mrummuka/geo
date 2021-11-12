@@ -1,0 +1,505 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Perform a Word Search
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [file]
+
+DESCRIPTION
+    Perform a Word Search on stdin or "file".  You can do this two ways:
+	- The matrix followed by blank line, then the words.
+	- The matrix in 1 character words, then the words.
+
+    You can use letters or numbers. Comments are: "# any text".
+
+OPTIONS
+    -b		No backwards
+    -d		No diagonals
+    -l		Lowercase words
+    -N		Append numerical words (NORTH, ONE, SIXTY, ...)
+    -r		Rotate-13
+    -u		Uppercase words
+    -w		Append 4+ letter words from $LOCALWORDS
+    -W		Append 4+ letter words from $SHAREWORDS
+    -D lvl	Debug level
+
+EXAMPLES
+    First method:
+
+	$ geo-wordsearch
+	CRCOCRCCCVLV
+	ELRLELCLOVER
+	LVOVOCOOVOCE
+	VCOVRVRVRLRV
+	CLOVEREEEEVC
+	COERVRVRVRLC
+	LVVCOOOOVOLL
+	OEERLRLEVOLV
+	VRCCCCCEVCVC
+	ECLOVEREVOLC
+	REVOLCREVOLC
+
+	CLOV
+	VER
+
+    Second method:
+
+	$ geo-wordsearch
+        S Y C I S U M T P H C A N N E K S G L 
+        F N A G S I X E A N H N O O M R T H N 
+        F I O D O R T Y R T A W O I I D E E G 
+        T C R I I R E E A S M T H S T I W R T 
+        S N E E T L Y F D I P V E E R Y P O I 
+        D E E L W A O N E T A O N M E K I S S 
+        N C P V E O R H S E G S E A H V E N S 
+        E N F A E B R O S E N V R K T E N R W 
+        I A E E R S R K C G E S S E A T E E I 
+        R D S I G T R A S E E H T R F Z Y T T 
+        F W T O D E Y A T V D O G S I R T E E 
+        S S I N G I N G E E F I C T F E T Y F 
+        O U V S E I B A B Y R P E A F O S I B 
+        N T I F A M I L Y O W P N N C T E A F 
+        O S T R E A M E R S P E O U A H N R N 
+        I N I S N O O L L A B C N H E N I Y K 
+        R Y E Y A D S R A E Y W E N E H C N X 
+        P J S N O I T U L O S E R R C K X H G 
+        B V T H G I N D I M E F S H O R N S C 
+        APPETIZERS BABIES BALLOONS BANNERS CELEBRATE
+        CHAMPAGNE CONFETTI DANCE DECORATIONS FAMILY
+        FATHERTIME FESTIVITIES FIREWORKS FRIENDS GEOCACHING
+        GSIX HATS HOLIDAY HORNS KISS
+        MIDNIGHT MUSIC NEWYEARSDAY NEWYEARSEVE NEWYEARSEVENT
+        NOISEMAKERS PARADES PARTY RESOLUTIONS SINGING
+        STREAMERS
+	Original:
+	    S Y C I S U M T P H C A N N E K S G L 
+	    F N A G S I X E A N H N O O M R T H N 
+	    F I O D O R T Y R T A W O I I D E E G 
+	    T C R I I R E E A S M T H S T I W R T 
+	    S N E E T L Y F D I P V E E R Y P O I 
+	    D E E L W A O N E T A O N M E K I S S 
+	    N C P V E O R H S E G S E A H V E N S 
+	    E N F A E B R O S E N V R K T E N R W 
+	    I A E E R S R K C G E S S E A T E E I 
+	    R D S I G T R A S E E H T R F Z Y T T 
+	    F W T O D E Y A T V D O G S I R T E E 
+	    S S I N G I N G E E F I C T F E T Y F 
+	    O U V S E I B A B Y R P E A F O S I B 
+	    N T I F A M I L Y O W P N N C T E A F 
+	    O S T R E A M E R S P E O U A H N R N 
+	    I N I S N O O L L A B C N H E N I Y K 
+	    R Y E Y A D S R A E Y W E N E H C N X 
+	    P J S N O I T U L O S E R R C K X H G 
+	    B V T H G I N D I M E F S H O R N S C 
+	Words Found:
+	    S Y C I S U M   P   C     N E         
+	    F N A G S I X   A   H     O M       N 
+	      I O D         R   A     I I     E   
+	    T C R I I       A   M     S T   W     
+	    S N E E T L     D   P     E R Y       
+	    D E E L W A O   E   A     M E K I S S 
+	    N C P V E O R H S   G     A H       S 
+	    E N F A E B R O     N   R K T     R   
+	    I A E   R S R K C G E S   E A   E   I 
+	    R D S     T R A S E E     R F Z   T   
+	    F   T       Y A T V D O   S I   T     
+	      S I N G I N G E E     C T   E       
+		V S E I B A B Y     E A F   S   B 
+		I F A M I L Y   W P   N C T   A   
+	      S T R E A M E R S P E O   A H N     
+		I S N O O L L A B C N H   N I     
+		E Y A D S R A E Y W E N E     N   
+		S N O I T U L O S E R R         G 
+		T H G I N D I M     S H O R N S   
+	Words Left:
+			  T   H   A N     K S G L 
+			  E   N   N O     R T H   
+	    F       O R T Y   T   W O     D E   G 
+		      R E E   S   T H     I   R T 
+			Y F   I   V E       P O I 
+			  N   T   O N             
+			      E   S E     V E N   
+			    S E   V       E N   W 
+		  E                 S     T   E   
+		  I G             H T       Y   T 
+	      W   O D E             G     R   E E 
+	    S                   F I     F   T Y F 
+	    O U                 R P       O   I   
+	    N T               O     N       E   F 
+	    O                         U       R N 
+	    I N                         E     Y K 
+	    R Y                           H C   X 
+	    P J                         C K X H   
+	    B V                 E F             C 
+	Horizontal:
+            THANKSGLENNORTHFORTYTWODEGREESTHIRTYFIVEPOINTONESEVENSEVENWESTEI
+            GHTYTWODEGREESFIFTYFOURPOINTONEFOURNINEYKRYHCXPJCKXHBVEFC
+	Vertical:
+            FSONOIRPBWUTNYJVEIOOGDRRETEYTEYEFNSHNTSITEEOFREANWTVOSVHIPFNOOHE
+            NESTGNUFECKRDIVETROHKSTEPENYTECXGHRONEEYIRYHLGTIWTEFFNKXC
+	Overlap:
+            Horizontal:     EITSVESRAEYAEWENAE
+            Vertical:       EEVAESREAIEYWTEANS
+	Words:  32 out of 31
+	    1	APPETIZERS
+	    1	BABIES
+	    1	BALLOONS
+	    1	BANNERS
+	    1	CELEBRATE
+	    1	CHAMPAGNE
+	    1	CONFETTI
+	    1	DANCE
+	    1	DECORATIONS
+	    1	FAMILY
+	    1	FATHERTIME
+	    1	FESTIVITIES
+	    1	FIREWORKS
+	    1	FRIENDS
+	    1	GEOCACHING
+	    1	GSIX
+	    1	HATS
+	    1	HOLIDAY
+	    1	HORNS
+	    1	KISS
+	    1	MIDNIGHT
+	    1	MUSIC
+	    1	NEWYEARSDAY
+	    2	NEWYEARSEVE
+	    1	NEWYEARSEVENT
+	    1	NOISEMAKERS
+	    1	PARADES
+	    1	PARTY
+	    1	RESOLUTIONS
+	    1	SINGING
+	    1	STREAMERS
+
+SEE ALSO
+    http://www.newocr.com/
+    http://coord.info/GC38HJE
+    http://coord.info/GC35J4T
+    http://coord.info/GC2BBF0
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+ROT13=0
+UPPER=0
+LOWER=0
+NODIAG=0
+NOBACK=0
+WORDS=
+SHAREWORDS=/usr/share/dict/words
+if [ -s "$HOME/lib/geo/english.dic" ]; then
+    LOCALWORDS=$HOME/lib/geo/english.dic
+else
+    LOCALWORDS=/usr/lib/geo/english.dic
+fi
+while getopts "bdlNruwWD:h?" opt
+do
+	case $opt in
+	b)	NOBACK=1;;
+	d)	NODIAG=1;;
+	l)	LOWER=1;;
+	r)	ROT13=1;;
+	u)	UPPER=1;;
+	N)	WORDS=N;;
+	w)	WORDS=w;;
+	W)	WORDS=W;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+FILE=$1
+if [ "$FILE" = "" ]; then
+    FILE=-
+fi
+
+case "$WORDS" in
+w)
+    WORDS=/tmp/words.$$
+    trap "rm -f $WORDS" EXIT
+    sed 's/.*,//' $LOCALWORDS | grep "^[a-z][a-z][a-z][a-z]" | sort -u > $WORDS
+    UPPER=1
+    ;;
+W)
+    WORDS=/tmp/words.$$
+    trap "rm -f $WORDS" EXIT
+    grep "^[a-z][a-z][a-z][a-z]" $SHAREWORDS > $WORDS
+    UPPER=1
+    ;;
+N)
+    WORDS=/tmp/words.$$
+    trap "rm -f $WORDS" EXIT
+    cat <<-EOF > $WORDS
+	AND DEGREE DEGREES DIVIDE DIVIDED DOT EAST EIGHT EIGHTEEN EIGHTY
+	ELEVEN FIFTEEN FIFTY FIVE FORTY FOUR FOURTEEN HUNDRED MINUS MINUTE
+	MINUTES NINE NINETEEN NINETY NORTH ONE PLUS POINT SEVEN SEVENTEEN
+	SEVENTY SIX SIXTEEN SIXTY SOUTH TEN THIRTEEN THIRTY THOUSAND THREE
+	TIMES TWELVE TWENTY TWO WEST ZERO
+	EOF
+    ;;
+esac
+
+awk -v "DEBUG=$DEBUG" \
+    -v ROT13=$ROT13 \
+    -v LOWER=$LOWER \
+    -v UPPER=$UPPER \
+    -v NOBACK=$NOBACK \
+    -v NODIAG=$NODIAG \
+'
+function fill_or_blank(a, r,c,R,C, f,	x, y, tmp) {
+    # print r,c,R,C
+    if (r == R)
+    {
+	if (c > C) { tmp = c; c = C; C = tmp }
+	for (x = c; x <= C; ++x)
+	{
+	    a[x,r] = f ? t[x,r] : " "
+	    if (f) ++overlap[x,r]
+	}
+    }
+    else if (c == C)
+    {
+	if (r > R) { tmp = r; r = R; R = tmp }
+	for (y = r; y <= R; ++y)
+	{
+	    a[c,y] = f ? t[c,y] : " "
+	    if (f) ++overlap[c,y]
+	}
+    }
+    else
+    {
+	if (r > R)
+	{
+	    tmp = r; r = R; R = tmp
+	    tmp = c; c = C; C = tmp
+	}
+	x = c
+	for (y = r; y <= R; ++y)
+	{
+	    if (c <= C)
+	    {
+		a[x++,y] = f ? t[x,y] : " "
+		if (f) ++overlap[x-1,y]
+	    }
+	    else
+	    {
+		a[x--,y] = f ? t[x,y] : " "
+		if (f) ++overlap[x+1,y]
+	    }
+	}
+    }
+}
+function printit(a, nr, nc, rot13, nospace, 	r, c, count) {
+    count = 0
+    if (nospace) printf "\t"
+    for (r = 1; r <= nr; ++r)
+    {
+	if (!nospace) printf "\t"
+	for (c = 1; c <= nc; ++c)
+	{
+	    ch = a[c, r]
+	    if (rot13 && match(ch, "[a-zA-Z]") != 0)
+		ch = letter[ch]
+	    if (!nospace)
+		printf "%c ", ch
+	    else if (ch != " ")
+	    {
+		printf "%c", ch
+		if (++count % 64 == 0) printf("\n\t")
+	    }
+	}
+	if (!nospace) printf "\n"
+    }
+    if (nospace) printf "\n"
+}
+function printvert(a, nr, nc, rot13, nospace,     r, c, count) {
+    count = 0
+    if (nospace) printf "\t"
+    for (c = 1; c <= nc; ++c)
+    {
+        if (!nospace) printf "\t"
+	for (r = 1; r <= nr; ++r)
+        {
+            ch = a[c, r]
+            if (rot13 && match(ch, "[a-zA-Z]") != 0)
+                ch = letter[ch]
+            if (!nospace)
+                printf "%c ", ch
+            else if (ch != " ")
+            {
+                printf "%c", ch
+		if (++count % 64 == 0) printf("\n\t")
+            }
+        }
+        if (!nospace) printf "\n"
+    }
+    if (nospace) printf "\n"
+}
+function printoverlap(nr, nc, 	r, c) {
+    printf "\tHorizontal:\t"
+    for (r = 1; r <= nr; ++r)
+	for (c = 1; c <= nc; ++c)
+	    if (overlap[r,c] >= 2)
+		printf "%c", t[r,c]
+    printf "\n\tVertical:\t"
+    for (c = 1; c <= nc; ++c)
+	for (r = 1; r <= nr; ++r)
+	    if (overlap[r,c] >= 2)
+		printf "%c", t[r,c]
+    printf "\n"
+}
+
+BEGIN {
+    from="NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
+    to  ="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    for (i = 1; i <= length(from); i++) {
+	letter[substr(from, i, 1)] = substr(to, i, 1)
+    }
+    nr = 0
+}
+/^#/ {
+    comments = comments $0 "\n"
+    next
+}
+NF == 0 {
+    part2 = 1
+    next
+}
+(length($1) > 1 && lastlen == 1) {
+    part2 = 1
+}
+part2 == 1 {
+    for (i = 1; i <= NF; ++i)
+    {
+	if (LOWER)
+	    words[wc++] = tolower($i) ""
+	else if (UPPER)
+	    words[wc++] = toupper($i) ""
+	else
+	    words[wc++] = $i ""
+    }
+    next
+}
+NF == 1 && length($1) > 1 && part2 == 0 {
+    gsub(".", "& ")
+    # print $0, NF
+    ++nr
+    for (i = 1; i <= NF;)
+    {
+	dt[x=i,y=nr] = $i ""
+	ft[x=i,y=nr] = " "
+	t[x=i++,y=nr] = $i ""
+    }
+    next
+}
+NF > 1 && part2 == 0 {
+    lastlen = 1
+    ++nr
+    for (i = 1; i <= NF;)
+    {
+	dt[x=i,y=nr] = $i ""
+	ft[x=i,y=nr] = " "
+	t[x=i++,y=nr] = $i ""
+    }
+}
+END{
+    count = 0
+    for (word = 0; word < wc; ++word)
+    {
+	l = split(words[word], w, "")
+	for (i = 1;i <= x; ++i)
+	{   # Process columns...
+	    for (j = 0; ++j <= y;)
+	    {	# Process rows...
+		for (a = 0; a < 9; ++a)
+		{
+		    if (NOBACK && \
+			(a==1 || a==3) )
+			continue
+		    if (NODIAG && \
+			(a==0 || a==2 || a==6 || a==8) )
+			continue
+		    if (t[I=i,J=j] != w[1])
+			break
+		    for (k = 1; k < l;)
+		    {
+			if (!(T = t[I+=int(a/3)-1,J+=a%3-1]) || T != w[++k])
+			    break
+			if (k == l)
+			{
+			    fill_or_blank(dt, j, i, J, I, 0)
+			    fill_or_blank(ft, j, i, J, I, 1)
+			    counts[word]++
+			    count++
+			    if (DEBUG)
+				print words[word], \
+				    "row "j (B=", column ")i" --> row " \
+				    J B I
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    print "Original:"
+    printit(t, y, x, 0, 0)
+    print "Words Found:"
+    printit(ft, y, x, 0, 0)
+    print "Words Left:"
+    printit(dt, y, x, 0, 0)
+    print "Horizontal:"
+    printit(dt, y, x, 0, 1)
+    print "Vertical:"
+    printvert(dt, y, x, 0, 1)
+    print "Overlap:"
+    printoverlap(y, x)
+
+    if (ROT13)
+    {
+	print "Words Left (rot13):"
+	printit(dt, y, x, 1, 0)
+	print "   Horizontal:"
+	printit(dt, y, x, 1, 1)
+	print "   Vertical:"
+	printvert(dt, y, x, 1, 1)
+    }
+
+    print "Words: ", count, "out of", wc
+    for (i = 0; i < wc; ++i)
+	if (wc < 1000 || counts[i])	# Print all counts if words < 1000
+	    printf "\t%s\t%s\n", counts[i], (words[i] == 0) ? "" : words[i]
+    
+    if (comments != "")
+	print comments
+}' $FILE $WORDS

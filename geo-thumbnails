@@ -1,0 +1,103 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Recursively extract image thumbnails
+
+SYNOPSIS
+    `basename $PROGNAME` [options] image ...
+
+DESCRIPTION
+    Recursively extract image thumbnails from the image(s).
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    For http://coord.info/GC51JZN:
+
+	$ geo-thumbnails n.jpg w.jpg
+	n-t-00.jpg n-t-01.jpg n-t-02.jpg n-t-03.jpg n-t-04.jpg n-t-05.jpg
+	w-t-00.jpg w-t-01.jpg w-t-02.jpg w-t-03.jpg w-t-04.jpg w-t-05.jpg
+
+SEE ALSO
+    http://www.sno.phy.queensu.ca/~phil/exiftool/
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	if [ $# > 1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+	if [ $# > 2 ]; then
+	    echo "`basename $PROGNAME`: $3" >&2
+	fi
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+if ! type exiftool >/dev/null 2>&1; then
+    error "No 'exiftool' present" \
+	"see http://www.sno.phy.queensu.ca/~phil/exiftool/" \
+	"OR # yum install exiftool"
+fi
+
+if [ $# == 0 ]; then
+    usage
+fi
+
+#
+#	Main Program
+#
+for img in $*; do
+    base=`echo "$img" | sed 's/\..*//'`
+    old="$base-t-00.jpg"
+    cp "$img" "$old"
+    n=1
+    while true; do
+	tgt=`printf "$base-t-%02d.jpg" $n`
+	exiftool -b -ThumbnailImage "$old" > "$tgt"
+	if [ ! -s "$tgt" ]; then
+	    rm -f "$tgt"
+	    if [ $n == 1 ]; then
+		rm -f "$old"
+	    else
+		echo
+	    fi
+	    break
+	fi
+	if [ $n == 1 ]; then
+	    printf "$old "
+	fi
+	printf "$tgt "
+	old="$tgt"
+	((++n))
+    done
+done

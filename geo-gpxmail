@@ -1,0 +1,330 @@
+#!/bin/bash
+#	$Id: geo-gpxmail,v 1.34 2013/04/26 10:25:30 rick Exp $
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Process PQ email using gpx2html
+
+SYNOPSIS
+	`basename $PROGNAME` [options]
+
+DESCRIPTION
+	Process PQ email using gpx2html.  The results are placed under
+	directory '\$PQDIR/<pqname>'.  \$PQDIR can be set on the command
+	line with the -d option, or in $HOME/.georc.  The default is
+	PQDIR=$PQDIR.
+
+	<pqname> is determined from the subject line of the PQ email.
+	Which means this script could break at any time due to the
+	whims of Jeremy.com.
+
+	If a shell script named '\$PQDIR/<pqname>/preconvert.sh' exists,
+	it will be executed before gpx2html is run.  This can be used,
+	for example, to copy other GPX files into the current directory
+	for merging.  E.G.:
+
+		#/bin/sh
+		cp ../found/found.gpx .
+
+	If a shell script named '\$PQDIR/<pqname>/postconvert.sh' exists,
+	it will be executed after gpx2html is run.  This can be used
+	for example, to convert the gpx files to other formats.
+
+	The shell variables \$PQDIR and \$PQNAME are available to the
+	scripts for their internal use.
+
+	Here is a typical $HOME/.procmailrc recipe to use this program:
+
+		#
+		#	Automagically unpack geocaching locations
+		#
+		:0
+		* ^Subject:.*GEO] Pocket Query:
+		| geo-gpxmail -k
+
+        Requires: A subscriber login at http://www.geocaching.com.
+
+OPTIONS
+	-i		Incremental (gpx2html mn-20.gpx)
+	-k		Kill all gpx2html processes
+	-d pqdir	Base directory for all PQ's [$PQDIR/]
+	-D lvl		Debug level
+
+EXAMPLES
+	Request and process the list of caches I have found and place
+	it into directory $PQDIR/found/
+
+	    $ geo-demand -Nfound -qifound
+
+	Request and process 500 nearest caches I have not found and place
+	it into directory $PQDIR/DemandQuary1/
+
+	    $ geo-demand -qnotfound
+
+SEE ALSO
+	geo-demand
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Set default options, can be overriden on command line or in rc file
+#
+PQDIR=$HOME/Caches
+
+#
+#	Read RC file, if there is one
+#
+if [ -f $HOME/.georc ]; then
+	. $HOME/.georc
+	# N.B. must switch to read_rc_file if LAT/LON is ever needed here
+fi
+
+#
+#       Process the options
+#
+DEBUG=0
+KILL=0
+INCR=0
+while getopts "d:kiD:h?" opt
+do
+	case $opt in
+	d)	PQDIR="$OPTARG";;
+	i)	INCR=1;;
+	k)	KILL=1;;
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+[ -d "$PQDIR" ] || mkdir -p -m755 $PQDIR
+[ -d "$PQDIR" ] || error "Could not mkdir $PQDIR"
+[ -d "$PQDIR/tmp" ] || mkdir -m755 "$PQDIR/tmp"
+[ -d "$PQDIR/tmp" ] || error "Could not mkdir $PQDIR/tmp"
+cd "$PQDIR/tmp" || error "Couldn't cd $PQDIR/tmp"
+
+#
+#	Unpack the email in the tmp directory
+#
+(cat $* | tee pq.mail | munpack -f -q >mimename 2>/dev/null) \
+    || error "Could not munpack PQ email"
+
+#
+#	Figure out what the PQ name was, check it for safety,
+#	and make a directory for it.
+#
+MIMEFILE=`cat mimename | sed 's/ .*//' `
+PQNAME=`head -n200 pq.mail | grep "^Subject: " | sed 's/.*: //' `
+BASEPQNAME=`echo "$PQNAME" | sed 's/-.*//'`
+rm -f mimename
+
+case "$PQNAME" in
+*..*)	error "Unsafe name '$PQNAME'; remove dots";;
+esac
+
+[ -d "../$BASEPQNAME" ] || mkdir -m755 "$PQDIR/$BASEPQNAME"
+[ -d "../$BASEPQNAME" ] || error "Could not mkdir $BASEPQDIR/$PQNAME"
+
+#
+#	Unpack the ZIP file in the $PQDIR/tmp/ directory, rename the
+#	results, and move the GPX file into directory $PQDIR/$PQNAME/
+#
+GPXFILES=
+for f in $MIMEFILE; do
+    case $f in
+    *.zip)
+	    debug 1 "$f -> $PQNAME.zip"
+	    mv $f "$PQNAME.zip" ||
+		error "Could not rename  $f -> $PQNAME.zip"
+	    unzip -q -o "$PQNAME.zip" || error "Could not unzip $PQNAME.zip"
+	    rm -f *.desc # Useless file that doesn't describe query at all
+	    for i in `basename $f .zip`*; do
+		suffix=`echo "$i" | sed 's/.*[.]//' `
+		case $i in
+		*-wpts.gpx)
+		    debug 1 "$i -> $PQNAME-wpts.gpx"
+		    mv $i "$PQNAME-wpts.gpx" ||
+			error "Could not rename  $i -> $PQNAME-wpts.gpx"
+		    ;;
+		*.gpx)
+		    debug 1 "$i -> ../$BASEPQNAME/$PQNAME.$suffix"
+		    mv "$i" "../$BASEPQNAME/$PQNAME.$suffix" ||
+			error "Could not rename: $i -> $PQNAME.suffix"
+		    GPXFILES="$GPXFILES $PQNAME.$suffix"
+		    ;;
+		*)
+		    error "Do not know what to do with '$i'"
+		    ;;
+		esac
+	    done
+	    ;;
+    *-wpts.gpx)
+	    debug 1 "$f -> $PQNAME-wpts.gpx"
+	    mv $f "$PQNAME-wpts.gpx" ||
+		error "Could not rename  $f -> $PQNAME-wpts.gpx"
+	    ;;
+    *.gpx)
+	    suffix=gpx
+	    debug 1 "$f -> ../$BASEPQNAME/$PQNAME.$suffix"
+	    mv "$f" "../$BASEPQNAME/$PQNAME.$suffix" ||
+		error "Could not rename: $f -> $PQNAME.suffix"
+	    GPXFILES="$GPXFILES $PQNAME.$suffix"
+	    ;;
+    *)
+	    error "Do not know what to do with '$f'";;
+    esac
+done
+if [ $DEBUG = 9 ]; then
+    exit
+fi
+
+#
+#	Change into the $PQDIR/$PQNAME directory and execute the
+#	preconvert.sh shell command.  This command can be used to
+#	copy other gpx files into this directory for merging.
+#
+cd "../$BASEPQNAME/" || error "Couldn't cd $BASEPQNAME"
+export PQDIR PQNAME
+if [ -x preconvert.sh ]; then
+    ./preconvert.sh
+fi
+
+#
+#	Convert any GPX files that are in the $PQDIR/$PQNAME/ directory.
+#
+
+if [ $KILL = 1 ]; then
+    debug 1 "killall..."
+    killall -w -q gpx2html
+fi
+
+if [ $INCR = 0 ]; then
+    rm -rf HTML || error "Could not remove old HTML"
+    debug 1 "gpx2html ..."
+    gpx2html > /dev/null || error "Could not run gpx2html"
+else
+    debug 1 "gpx2html $GPXFILES ..."
+    
+    [ -d oHTML/ ] || mkdir oHTML
+    cp -a HTML/* oHTML
+    gpx2html $GPXFILES > /dev/null || error "Could not run gpx2html"
+    cp -a HTML/* oHTML
+    rm -rf HTML
+    mv oHTML HTML
+
+    cd HTML || error "Could not cd into HTML"
+
+    # Prepare index_names.html
+    cat <<-EOF > index_names.html
+	<html><Head><Title>Caches Sorted by Name</Title></Head><Body>
+	<center><h2>Geocaches</h2>Sorted by Name.</center>
+	<p><a href="index.html">Sorted by ID.</a><br>
+	<a href="index_rev.html">Reverse Sorted by ID</a></p>
+	<dl>
+	<hr>
+	<a href="index_names_!.html">!</a>&nbsp;
+	<a href="index_names_A.html">A</a>&nbsp;
+	<a href="index_names_B.html">B</a>&nbsp;
+	<a href="index_names_C.html">C</a>&nbsp;
+	<a href="index_names_D.html">D</a>&nbsp;
+	<a href="index_names_E.html">E</a>&nbsp;
+	<a href="index_names_F.html">F</a>&nbsp;
+	<a href="index_names_G.html">G</a>&nbsp;
+	<a href="index_names_H.html">H</a>&nbsp;
+	<a href="index_names_I.html">I</a>&nbsp;
+	<a href="index_names_J.html">J</a>&nbsp;
+	<a href="index_names_K.html">K</a>&nbsp;
+	<a href="index_names_L.html">L</a>&nbsp;
+	<a href="index_names_M.html">M</a>&nbsp;
+	<a href="index_names_N.html">N</a>&nbsp;
+	<a href="index_names_O.html">O</a>&nbsp;
+	<a href="index_names_P.html">P</a>&nbsp;
+	<a href="index_names_Q.html">Q</a>&nbsp;
+	<a href="index_names_R.html">R</a>&nbsp;
+	<a href="index_names_S.html">S</a>&nbsp;
+	<a href="index_names_T.html">T</a>&nbsp;
+	<a href="index_names_U.html">U</a>&nbsp;
+	<a href="index_names_V.html">V</a>&nbsp;
+	<a href="index_names_W.html">W</a>&nbsp;
+	<a href="index_names_X.html">X</a>&nbsp;
+	<a href="index_names_Y.html">Y</a>&nbsp;
+	<a href="index_names_Z.html">Z</a>&nbsp;
+	</dl></Body></html>
+	EOF
+
+    #
+    rm -f index_names*.tmp
+    for f in GC*.html; do
+	gc=`echo "${f/.html/}"`
+	read line < $f
+	# equivalent:  name=`echo "$line" | sed -e "s/[^-]* - //" -e "s/<.*//"`
+	left=`echo "${line/* - /}"`
+	name=`echo "${left/<*/}"`
+	n=`echo "${name:0:1}"`
+	case "$n" in
+	a) n=A;; b) n=B;; c) n=C;; d) n=D;; e) n=E;;
+	f) n=F;; g) n=G;; h) n=H;; i) n=I;; j) n=J;;
+	k) n=K;; l) n=L;; m) n=M;; n) n=N;; o) n=O;;
+	p) n=P;; q) n=Q;; r) n=R;; s) n=S;; t) n=T;;
+	u) n=U;; v) n=V;; w) n=W;; x) n=X;; y) n=Y;;
+	z) n=Z;;
+	A) n=A;; B) n=B;; C) n=C;; D) n=D;; E) n=E;;
+	F) n=F;; G) n=G;; H) n=H;; I) n=I;; J) n=J;;
+	K) n=K;; L) n=L;; M) n=M;; N) n=N;; O) n=O;;
+	P) n=P;; Q) n=Q;; R) n=R;; S) n=S;; T) n=T;;
+	U) n=U;; V) n=V;; W) n=W;; X) n=X;; Y) n=Y;;
+	Z) n=Z;;
+	*)	n='!';;
+	esac
+	cat <<-EOF >> index_names_"$n".tmp
+		<dt>$gc <a href="$f">	$name</a> </dt>
+	EOF
+    done
+    #
+    for i in '!' A B C D E F G H I J K L M N O P Q R S T U V W X Y Z; do
+	cat <<-EOF > index_names_"$i".html
+		<html><Head><Title>
+		    Caches Sorted by letter $i
+		</Title></Head><Body>
+		EOF
+	sort -t "	" -k 2 < index_names_"$i".tmp >> index_names_"$i".html
+	cat <<-EOF >> index_names_"$i".html
+		</body></html>
+		EOF
+	rm -f index_names_"$i".tmp
+    done
+    #
+    cd ..
+fi
+
+rm -f Caches.loc	# Useless file
+
+#
+#	Execute the postconvert.sh shell command.
+#
+if [ -x postconvert.sh ]; then
+    ./postconvert.sh
+fi

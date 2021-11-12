@@ -1,0 +1,131 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - Convert decimal IDs to GC codes
+
+SYNOPSIS
+    `basename $PROGNAME` [options] [ID] ...
+
+DESCRIPTION
+    Convert decimal IDs to GC codes from the command line or stdin.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert IDs:
+
+	    $ geo-id2gccode 20 255 65536 512400 512401 4453031 9310266
+	    20      GC14    http://coord.info/GC14
+	    255     GCFF    http://coord.info/GCFF
+	    65536   GCG000  http://coord.info/GCG000
+	    512400  GCZZZZ  http://coord.info/GCZZZZ
+	    512401  GC10000 http://coord.info/GC10000
+	    4453031 GC588H3 http://coord.info/GC588H3
+	    9310266 GCAG9X3 http://coord.info/GCAG9X3
+
+    Fictitious IDs:
+
+	    $ geo-id2gccode 4467676856 146520045
+	    4467676856      GC5123456       http://coord.info/GC5123456
+	    146520045       GC543210        http://coord.info/GC543210
+
+    Convert https://coord.info/GC3HCAV from stdin:
+
+	    $ geo-id2gccode 
+	    1455229
+	    1332385
+	    1455229 GC20M2T http://coord.info/GC20M2T
+	    1332385 GC1WG83 http://coord.info/GC1WG83
+
+SEE ALSO
+    geo-gccode2id
+	
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+id2code()
+{
+    awk '
+    function hex2dec(x,   val) {
+        for (val = 0; length(x); x = substr(x, 2))
+            val = 16*val + index("0123456789ABCDEF", substr(x, 1, 1)) - 1
+        return val
+    }
+
+    function id2code(id,    val) {
+        gid = "";
+        if (id < 0)
+            ;
+        else if (id < 65536)
+	    gid = sprintf("GC%X", id)   # Was %04X
+        else
+        {
+            GcOffset = 16 * 31 * 31 * 31 - 65536
+            GcSet = "0123456789ABCDEFGHJKMNPQRTVWXYZ"
+            id += GcOffset;
+            for (i = 1; i <= 30; ++i)
+            {
+		if (id == 0) break;
+                gid = substr(GcSet, id%31 + 1, 1) gid
+                id = int(id / 31)
+            }
+            if (id)
+                gid = ""
+            else
+                gid = "GC" gid
+        }
+        return gid
+    }
+    length == 0 {
+	next
+    }
+    {
+	code = id2code($0)
+	printf "%s	%s	http://coord.info/%s\n", $0, code, code
+    }'
+}
+
+if [ $# = 0 ]; then
+	tr '[a-z]' '[A-Z]' | id2code
+else
+    for i in $*; do
+	echo $i
+    done | tr '[a-z]' '[A-Z]' | id2code
+fi

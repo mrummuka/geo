@@ -1,0 +1,333 @@
+#!/bin/bash
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+	`basename $PROGNAME` - Run PQ's to get all caches in a state or country
+
+SYNOPSIS
+	`basename $PROGNAME` [options] state_or_country
+	`basename $PROGNAME` [options] country state
+
+DESCRIPTION
+	Run pocket queries to get all caches in a state or country.
+
+OPTIONS
+	-c              Crontab output
+	-w		Weekly crontab output, with -c
+	-l PQLIM	Limit PQ size to PQLIM ($pqlim)
+	-n NUM		Limit total caches to NUM ($num)
+	-d N[+-]	Difficulty level [1+]
+	-t N[+-]	Terrain level [1+]
+	-f		Do not report any found or unavailable caches
+        -q qualifiers   Limit by one or more space/comma separated qualifiers:
+
+                        Type: these ones OR together....
+                            traditional, multi, virtual, letterbox, event,
+                            mystery, webcam, locationless, trash
+                        Container: these ones OR together....
+                            small, other, none, large, regular, micro, unknown
+                        These ones AND together....
+                            ifound, notfound, bug, unfound, notowned,
+                            new, iown, watchlist, updated, active, notactive,
+                            notign, found7, soc, notsoc
+			
+	-D lvl		Debug level
+
+EXAMPLES
+	List PQs:
+
+	 $ geo-pqs mn
+	 geo-demand -n500  -T'11/05/2000-11/10/2003' -Nmn-00 mn   #499 caches
+	 geo-demand -n500  -T'11/11/2003-10/17/2004' -Nmn-01 mn   #497 caches
+	 geo-demand -n500  -T'10/18/2004-07/27/2005' -Nmn-02 mn   #498 caches
+	 geo-demand -n500  -T'07/28/2005-01/28/2006' -Nmn-03 mn   #494 caches
+	 geo-demand -n500  -T'01/29/2006-05/09/2006' -Nmn-04 mn   #500 caches
+	 geo-demand -n500  -T'05/10/2006-07/27/2006' -Nmn-05 mn   #500 caches
+	 geo-demand -n500  -T'07/28/2006-10/05/2006' -Nmn-06 mn   #498 caches
+	 geo-demand -n500  -T'10/07/2006-12/23/2006' -Nmn-07 mn   #492 caches
+	 geo-demand -n500  -T'12/24/2006-03/31/2007' -Nmn-08 mn   #495 caches
+	 geo-demand -n500  -T'04/01/2007-05/27/2007' -Nmn-09 mn   #487 caches
+	 geo-demand -n500  -T'05/28/2007-07/13/2007' -Nmn-10 mn  #494 caches
+	 geo-demand -n500  -T'07/14/2007-' -Nmn-11 mn            #107 caches
+
+	Crontab for rick:
+
+	 $ crontab -l
+	 34 1 * * 0       geo-demand -n500 -T'11/05/2000-11/10/2003' -Nmn-00 mn
+	 34 1 * * 1       geo-demand -n500 -T'11/11/2003-10/17/2004' -Nmn-01 mn
+	 34 1 * * 2       geo-demand -n500 -T'10/18/2004-07/27/2005' -Nmn-02 mn
+	 34 1 * * 3       geo-demand -n500 -T'07/28/2005-01/28/2006' -Nmn-03 mn
+	 34 1 * * 4       geo-demand -n500 -T'01/26/2006-05/09/2006' -Nmn-04 mn
+	 34 1 * * 5       geo-demand -n500 -T'05/10/2006-07/27/2006' -Nmn-05 mn
+	 34 1 * * 6       geo-demand -n500 -T'07/28/2006-10/05/2006' -Nmn-06 mn
+	 39 1 * * 1,3,5   geo-demand -n500 -T'10/07/2006-12/23/2006' -Nmn-07 mn
+	 39 1 * * 0,2,4,6 geo-demand -n500 -T'12/24/2006-03/31/2007' -Nmn-08 mn
+	 44 1 * * 1,3,5   geo-demand -n500 -T'04/01/2007-05/27/2007' -Nmn-09 mn
+	 44 1 * * 0,2,4,6 geo-demand -n500 -T'05/28/2007-07/13/2007' -Nmn-10 mn
+	 49 1 * * *       geo-demand -n500 -T'07/14/2007-' -Nmn-11 mn  #107 caches 07/23/07
+
+	Filter:
+
+	 $ geo-pqs -qtrad,small,regular,large -d2- mn
+
+	Country and State:
+
+	 $ geo-pqs Australia "Northern Territory"
+
+SEE ALSO
+	geo-demand, geo-countries-states
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+#
+#       Process the options
+#
+DIFF=
+TERR=
+QUALS=
+CONTS=xxx
+TYPES=xxx
+OPTDEMAND=
+DEBUG=0
+NOTFOUND=
+NOTFOUND2=
+CRON=0
+WEEK=0
+num=99999
+pqlim=500
+while getopts "cd:l:n:t:q:wD:fh?" opt
+do
+    case $opt in
+    c)	CRON=1;;
+    w)	WEEK=1;;
+    d)
+	DIFF="$OPTARG"
+	OPTDEMAND="$OPTDEMAND -d$DIFF"
+	VDIFF=$(echo -- "$DIFF" | tr -d '[+\-]')
+	VDIFF=$(printf "%.1f" "$VDIFF" | tr -d .)
+	;;
+    l)	pqlim="$OPTARG" ;;
+    n)	num="$OPTARG" ;;
+    t)
+	TERR="$OPTARG"
+	OPTDEMAND="$OPTDEMAND -t$TERR"
+	VTERR=$(echo -- "$TERR" | tr -d '[+\-]')
+	VTERR=$(printf "%.1f" "$VTERR" | tr -d .)
+	;;
+    q)
+	QUALS="$OPTARG"
+	OPTDEMAND="$OPTDEMAND -q$QUALS"
+	quals=`echo "$QUALS" | sed 's/,/ /g' | tr '[A-Z]' '[a-z]' `
+	for q in $quals; do
+            case "$q" in
+            small)	CONTS="$CONTS|Small";;
+            other)	CONTS="$CONTS|Other";;
+            none)	CONTS="$CONTS|None";;
+            large)	CONTS="$CONTS|Large";;
+            regular)	CONTS="$CONTS|Regular";;
+            micro)	CONTS="$CONTS|Micro";;
+            unknown)	CONTS="$CONTS|Unkown";;
+            trad*)      TYPES="$TYPES|Traditional Cache";;
+            multi*)     TYPES="$TYPES|Multi-cache";;
+            virtual*)   TYPES="$TYPES|Virtual Cache";;
+            letter*)    TYPES="$TYPES|Letterbox Hybrid";;
+            event*)     TYPES="$TYPES|Event Cache";;
+            myst*)      TYPES="$TYPES|Unknown Cache";;
+            web*)       TYPES="$TYPES|Webcam Cache";;
+            loca*)      TYPES="$TYPES|Locationless (Reverse) Cache";;
+            *trash*)    TYPES="$TYPES|Cache In Trash Out Event";;
+	    esac
+	done
+	;;
+    D)	DEBUG="$OPTARG";;
+    f)	NOTFOUND=-f;	NOTFOUND2=-qnotfound;;
+    h|\?)   usage;;
+    esac
+done
+shift `expr $OPTIND - 1`
+
+if [ "$pqlim" -gt 1000 ]; then
+    error "PQ limit should be equal or less than 1000!"
+fi
+
+#
+#	Main Program
+#
+if [ $DEBUG -gt 0 ]; then
+    TMP=/tmp/geo-pqs.ts
+else
+    TMP=/tmp/geo-pqs$$
+    trap "rm -f $TMP" EXIT
+fi
+case "$#" in
+2)	country="$1"; state="$2";;
+1)	state="$1";;
+*)	usage;;
+esac
+
+# fix states containing whitespaces
+state_oneword=$(echo "$state" | sed 's/ /_/g') 
+
+#pqlim=1000
+#pqlim=500
+((lim=pqlim-30))	# For ignored caches (08/01/09)
+if [ "$DEBUG" = 9 ]; then
+    num=40
+    pqlim=40
+    lim=20
+fi
+
+geo-newest -D$DEBUG $NOTFOUND -F -X "" -otabsep -n$num "$country" "$state" \
+    | tr '	' '|' > $TMP
+if [ $? != 0 ]; then
+    error "geo-newest failed"
+fi
+
+debug 1 "*** geo-newest finished..."
+
+unixdate() {
+    timet=$1
+    fmt=$2
+    if [ `uname` = 'Darwin' ]; then
+	date=gdate
+	PATH=$PATH:/usr/local/bin:/opt/local/bin
+    else
+	date=date
+    fi
+
+    $date -d "1/1/1970 + $timet seconds" +"$fmt"
+}
+
+t=34
+t=18
+tinc=10
+tinc=5
+m=0
+d=1
+
+#
+#	do1 start-date end-date
+#
+do1() {
+    if [ "" = "$2" ]; then tab="	"; else tab=; fi
+    nn=`printf "%02d" $pq`
+    name="$state_oneword-$nn"
+    if [ $CRON = 1 ]; then
+	if [ $WEEK = 1 ]; then
+	    echo -e "$t	1	*	*	$m	\$HOME/bin/\c"
+	    ((m=(m+1) % 7))
+	    if [ $m = 0 -o $pq -ge $npq ]; then
+		((t=t+tinc))
+	    fi
+	else
+	    echo -e "$t	1	$d	*	*	\$HOME/bin/\c"
+	    ((d=d+1))
+	fi
+    fi
+    echo "geo-demand -n$pqlim $NOTFOUND2$OPTDEMAND -T'$1-$2' -N"$name" \"$state\"	$tab#$n caches"
+}
+
+#
+#	Read placed times into an array
+#
+i=0
+OIFS="$IFS"
+IFS="|"
+while read index shortname description notes url urltext icon lat lon \
+        lat32 lon32 latdecdir londecdir latdirdec londirdec latdir londir \
+        altfeet altmeters excel timet diff terr container type extra
+do
+    case "$DIFF" in
+    *-*)
+	    vdiff=$(printf "%.1f" "$diff" | tr -d .)
+	    if [ "$VDIFF" -lt "$vdiff" ]; then continue; fi
+	    ;;
+    *+*)
+	    vdiff=$(printf "%.1f" "$diff" | tr -d .)
+	    if [ "$VDIFF" -gt "$vdiff" ]; then continue; fi
+	    ;;
+    *)      ;;
+    esac
+
+    case "$TERR" in
+    *-*)
+	    vterr=$(printf "%.1f" "$terr" | tr -d .)
+	    if [ "$VTERR" -lt "$vterr" ]; then continue; fi
+	    ;;
+    *+*)
+	    vterr=$(printf "%.1f" "$terr" | tr -d .)
+	    if [ "$VTERR" -gt "$vterr" ]; then continue; fi
+	    ;;
+    *)      ;;
+    esac
+
+    if [ "$CONTS" != "xxx" ]; then
+	echo "$container" | egrep -q "$CONTS"
+	if [ $? != 0 ]; then continue; fi
+    fi
+
+    if [ "$TYPES" != "xxx" ]; then
+	echo "$type" | egrep -q "$TYPES"
+	if [ $? != 0 ]; then continue; fi
+    fi
+
+    date[i]=$(unixdate "$timet" "%m/%d/%Y")
+    ((++i))
+done < $TMP
+IFS="$OIFS"
+
+debug 1 "*** read placed names into array finished..."
+
+((npq=(i+lim-1) % lim))
+((npqm1=npq-1))
+((npqm2=npq-2))
+((e=$i))
+pq=0
+while true; do
+    ((s=e-1))
+    ((e=s-(lim-1)))
+    if ((s < 0)); then
+	break;
+    fi
+    if ((e < 0)); then
+	((n=s+1))
+	do1 "${date[s]}" ""
+	break;
+    fi
+    # echo ${date[e]} ${date[e-1]}
+    while [ "${date[e]}" = "${date[e-1]}" ]; do
+	debug 1 "back up: ${date[e]} ${date[e-1]}"
+	((++e))
+    done
+    ((n=s-e+1))
+    if [ $pq = 0 ]; then
+	# RER 04/02/13
+	do1 "01/01/2000" "${date[e]}"
+    else
+	do1 "${date[s]}" "${date[e]}"
+    fi
+    if [ "$n" = 0 ]; then
+	error "n=0 !!!"
+    fi
+    ((++pq))
+done

@@ -1,0 +1,114 @@
+#!/bin/sh
+
+PROGNAME="$0"
+
+usage() {
+	cat <<EOF
+NAME
+    `basename $PROGNAME` - google QRST string to Lat/lon
+
+SYNOPSIS
+    `basename $PROGNAME` [options] qrst ...
+
+DESCRIPTION
+    Google QRST string to Lat/lon.
+
+OPTIONS
+    -D lvl	Debug level
+
+EXAMPLE
+    Convert http://coord.info/GC4RXYK :
+
+	$ ggl2ll tqsqtstssqssrsrstsrttrtqsrqrr
+	tqsqtstssqssrsrstsrttrtqsrqrr 41.591999 -73.834784 n41.35.520 w73.50.087
+
+EOF
+
+	exit 1
+}
+
+#
+#       Report an error and exit
+#
+error() {
+	echo "`basename $PROGNAME`: $1" >&2
+	exit 1
+}
+
+debug() {
+	if [ $DEBUG -ge $1 ]; then
+	    echo "`basename $PROGNAME`: $2" >&2
+	fi
+}
+
+qrst2ll() {
+    awk -v q=$1 -v DEBUG=$DEBUG '
+    function abs(x)         { return (x>=0) ? x : -x }
+    function asin(x) { return atan2(x,sqrt(1-x*x)) }
+    function NormalToMercator(y) {
+	pi = 2 * asin(1);
+	y -= 0.5;
+	y *= 2 * pi;
+	y = exp( 2 * y );
+	y = ( y - 1 ) / ( y + 1 );
+	y = -asin( y );
+	return -y * 180 / pi;
+    }
+    BEGIN {
+	sub(".*=", "", q)
+	scale = 1
+	x = 0
+	y = 0
+	for (i = 2; i <= length(q); ++i)
+	{
+	    scale *= 0.5
+	    c = tolower(substr(q, i, 1))
+	    if (0)
+		{}
+	    else if (c == "q")
+		y += scale
+	    else if (c == "r")
+		{ y += scale; x += scale }
+	    else if (c == "s")
+		x += scale
+	    else if (c == "t")
+		{}
+	    if (DEBUG)
+		printf("%s gets you to (x,y): %.9lf, %.9lf\n",
+		    substr(q, 1, i), x, y)
+	}
+	lat = NormalToMercator(y)
+	lon = 360.0 * (x - 0.5)
+	printf("%s %f %f", q, NormalToMercator(y), 360.0 * (x - 0.5) )
+	ilat = int(lat); ilon = int(lon)
+	printf "\t%s%d.%06.3f %s%d.%06.3f", \
+	    lat >= 0.0 ? "n" : "s", abs(ilat), abs(lat-ilat) * 60, \
+	    lon >= 0.0 ? "e" : "w", abs(ilon), abs(lon-ilon) * 60
+	printf "\n"
+    }
+    '
+}
+
+#
+#       Process the options
+#
+DEBUG=0
+while getopts "D:h?" opt
+do
+	case $opt in
+	D)	DEBUG="$OPTARG";;
+	h|\?)	usage;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+#
+#	Main Program
+#
+if [ $# -lt 1 ]; then
+    usage
+fi
+
+for i in $*; do
+    qrst2ll $i
+done
